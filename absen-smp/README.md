@@ -33,6 +33,16 @@ npm run dev
 
 Akses di `http://localhost:3000`.
 
+## Deploy ke Vercel
+Repo ini memiliki folder aplikasi di `absen-smp/`, jadi sudah ditambahkan `vercel.json` di root agar Vercel menjalankan perintah build di subfolder tersebut.
+
+Langkah singkat:
+1) Import repo ke Vercel.
+2) Tambahkan env:
+   - `NEXT_PUBLIC_SUPABASE_URL`
+   - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+3) Deploy.
+
 ## Struktur Data
 Semua data disimpan di tabel `records` dengan kolom `type`:
 - `type = 'siswa'` untuk data siswa
