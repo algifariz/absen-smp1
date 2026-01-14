@@ -1,7 +1,7 @@
 ﻿
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import JsBarcode from "jsbarcode";
 import { BrowserMultiFormatReader } from "@zxing/library";
 import { supabase } from "@/lib/supabaseClient";
@@ -98,7 +98,7 @@ export default function Home() {
   const scanCloseTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const scannerRef = useRef<BrowserMultiFormatReader | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
-  const [todayDate, setTodayDate] = useState<string>("");
+  const [todayDate] = useState<string>(getTodayDate());
   const isClientReady = todayDate !== "";
 
   const kelasList = useMemo(() => {
@@ -125,6 +125,7 @@ export default function Home() {
   const totalSiswa = filteredSiswa.length;
   const totalPoin = filteredSiswa.reduce((sum, s) => sum + s.poin, 0);
 
+  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     const fetchAll = async () => {
       const { data: siswaRows } = await supabase
@@ -146,10 +147,6 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
-    setTodayDate(getTodayDate());
-  }, []);
-
-  useEffect(() => {
     if (!notif) return;
     if (notifTimeoutRef.current) clearTimeout(notifTimeoutRef.current);
     notifTimeoutRef.current = setTimeout(() => {
@@ -159,90 +156,6 @@ export default function Home() {
       if (notifTimeoutRef.current) clearTimeout(notifTimeoutRef.current);
     };
   }, [notif]);
-
-  useEffect(() => {
-    if (!scanModalOpen) {
-      scannerRef.current?.reset();
-      scannerRef.current = null;
-      setScanFeedback(null);
-      setScanStatus("idle");
-      if (scanCloseTimeoutRef.current) {
-        clearTimeout(scanCloseTimeoutRef.current);
-        scanCloseTimeoutRef.current = null;
-      }
-      return;
-    }
-
-    setScanFeedback(null);
-    setScanStatus("scanning");
-
-    if (!navigator?.mediaDevices?.getUserMedia) {
-      showNotif("\u{274C} Kamera tidak tersedia di perangkat ini");
-      setScanFeedback({ name: "Kamera", message: "Kamera tidak tersedia di perangkat ini", ok: false });
-      setScanStatus("error");
-      return;
-    }
-
-    const reader = new BrowserMultiFormatReader();
-    scannerRef.current = reader;
-    const videoEl = videoRef.current;
-    if (!videoEl) return;
-
-    const startScan = async () => {
-      try {
-        const previewStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
-        previewStream.getTracks().forEach((track) => track.stop());
-
-        const devices = (await navigator.mediaDevices.enumerateDevices()).filter(
-          (device: MediaDeviceInfo) => device.kind === "videoinput",
-        );
-        const preferredDevice = devices.find((device: MediaDeviceInfo) =>
-          /back|rear|environment/i.test(device.label),
-        );
-        const deviceId = preferredDevice?.deviceId || devices[0]?.deviceId || null;
-        const onResult = (result: unknown) => {
-          if (result) {
-            const text = (result as { getText?: () => string }).getText?.() ?? "";
-            if (!text) return;
-            setScanStatus("success");
-            processAbsensi(text);
-            scannerRef.current?.reset();
-            scanCloseTimeoutRef.current = setTimeout(() => {
-              setScanModalOpen(false);
-            }, 1500);
-          }
-        };
-
-        if (deviceId) {
-          await reader.decodeFromVideoDevice(deviceId, videoEl, onResult);
-          return;
-        }
-
-        await reader.decodeFromConstraints(
-          { video: { facingMode: { ideal: "environment" } }, audio: false },
-          videoEl,
-          onResult,
-        );
-      } catch (error) {
-        const err = error as { name?: string; message?: string };
-        const reason = err?.name || "UnknownError";
-        let message = "Tidak bisa mengakses kamera";
-        if (reason === "NotAllowedError") message = "Izin kamera ditolak. Silakan izinkan kamera.";
-        if (reason === "NotFoundError") message = "Kamera tidak ditemukan.";
-        if (reason === "NotReadableError") message = "Kamera sedang dipakai aplikasi lain.";
-        if (reason === "SecurityError") message = "Gunakan https atau localhost untuk akses kamera.";
-        showNotif(`\u{274C} ${message}`);
-        setScanFeedback({ name: "Kamera", message, ok: false });
-        setScanStatus("error");
-      }
-    };
-
-    startScan();
-
-    return () => {
-      reader.reset();
-    };
-  }, [scanModalOpen, scanSession]);
 
   useEffect(() => {
     if (barcodeModalOpen && barcodeTarget) {
@@ -261,11 +174,11 @@ export default function Home() {
     }
   }, [barcodeModalOpen, barcodeTarget]);
 
-  const showNotif = (message: string) => {
+  const showNotif = useCallback((message: string) => {
     setNotif(message);
-  };
+  }, []);
 
-  const refreshData = async () => {
+  const refreshData = useCallback(async () => {
     const { data: siswaRows } = await supabase
       .from("records")
       .select("*")
@@ -278,7 +191,7 @@ export default function Home() {
       .order("poin_pelanggaran", { ascending: true });
     setSiswaData((siswaRows as SiswaRecord[]) || []);
     setPelanggaranData((pelanggaranRows as PelanggaranRecord[]) || []);
-  };
+  }, []);
 
   const handleAddSiswa = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -372,7 +285,7 @@ export default function Home() {
     }
   };
 
-  const handleUpdateSiswa = async (siswa: SiswaRecord, updates: Partial<SiswaRecord>) => {
+  const handleUpdateSiswa = useCallback(async (siswa: SiswaRecord, updates: Partial<SiswaRecord>) => {
     const { error } = await supabase
       .from("records")
       .update(updates)
@@ -384,7 +297,7 @@ export default function Home() {
       return true;
     }
     return false;
-  };
+  }, [refreshData]);
 
   const handleDeleteSiswa = async (siswa: SiswaRecord) => {
     const { error } = await supabase
@@ -414,7 +327,7 @@ export default function Home() {
     }
   };
 
-  const processAbsensi = async (barcodeId: string) => {
+  const processAbsensi = useCallback(async (barcodeId: string) => {
     const siswa = siswaData.find((s) => s.barcode_id === barcodeId);
     if (!siswa) {
       const message = "Barcode tidak ditemukan!";
@@ -444,8 +357,99 @@ export default function Home() {
       showNotif(`\u{274C} ${message}`);
       setScanFeedback({ name: siswa.nama, message, ok: false });
     }
-  };
+  }, [siswaData, showNotif, handleUpdateSiswa]);
 
+  useEffect(() => {
+    if (!scanModalOpen) {
+      scannerRef.current?.reset();
+      scannerRef.current = null;
+      setScanFeedback(null);
+      setScanStatus("idle");
+      if (scanCloseTimeoutRef.current) {
+        clearTimeout(scanCloseTimeoutRef.current);
+        scanCloseTimeoutRef.current = null;
+      }
+      return;
+    }
+
+    setScanFeedback(null);
+    setScanStatus("scanning");
+
+    if (!navigator?.mediaDevices?.getUserMedia) {
+      showNotif("\u{274C} Kamera tidak tersedia di perangkat ini");
+      setScanFeedback({ name: "Kamera", message: "Kamera tidak tersedia di perangkat ini", ok: false });
+      setScanStatus("error");
+      return;
+    }
+
+    const reader = new BrowserMultiFormatReader();
+    scannerRef.current = reader;
+    const videoEl = videoRef.current;
+    if (!videoEl) return;
+
+    const startScan = async () => {
+      try {
+        const previewStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+        previewStream.getTracks().forEach((track) => track.stop());
+
+        const devices = (await navigator.mediaDevices.enumerateDevices()).filter(
+          (device: MediaDeviceInfo) => device.kind === "videoinput",
+        );
+        const preferredDevice = devices.find((device: MediaDeviceInfo) =>
+          /back|rear|environment/i.test(device.label),
+        );
+        const deviceId = preferredDevice?.deviceId || devices[0]?.deviceId || null;
+        const onResult = (result: unknown) => {
+          if (result) {
+            const text = (result as { getText?: () => string }).getText?.() ?? "";
+            if (!text) return;
+            setScanStatus("success");
+            processAbsensi(text);
+            scannerRef.current?.reset();
+            scanCloseTimeoutRef.current = setTimeout(() => {
+              setScanModalOpen(false);
+            }, 1500);
+          }
+        };
+
+        if (deviceId) {
+          await reader.decodeFromVideoDevice(deviceId, videoEl, onResult);
+          return;
+        }
+
+        await reader.decodeFromConstraints(
+          {
+            video: {
+              facingMode: { ideal: "environment" },
+              width: { ideal: 1280 },
+              height: { ideal: 720 },
+            },
+            audio: false,
+          },
+          videoEl,
+          onResult,
+        );
+      } catch (error) {
+        const err = error as { name?: string; message?: string };
+        const reason = err?.name || "UnknownError";
+        let message = "Tidak bisa mengakses kamera";
+        if (reason === "NotAllowedError") message = "Izin kamera ditolak. Silakan izinkan kamera.";
+        if (reason === "NotFoundError") message = "Kamera tidak ditemukan.";
+        if (reason === "NotReadableError") message = "Kamera sedang dipakai aplikasi lain.";
+        if (reason === "SecurityError") message = "Gunakan https atau localhost untuk akses kamera.";
+        showNotif(`\u{274C} ${message}`);
+        setScanFeedback({ name: "Kamera", message, ok: false });
+        setScanStatus("error");
+      }
+    };
+
+    startScan();
+
+    return () => {
+      reader.reset();
+    };
+  }, [scanModalOpen, scanSession, processAbsensi, showNotif]);
+  /* eslint-enable react-hooks/set-state-in-effect */
   const handlePlusPoin = async (siswa: SiswaRecord) => {
     const todayDate = getTodayDate();
     if (siswa.absen_hari_ini !== todayDate) {
