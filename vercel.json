@@ -1,7 +1,0 @@
-{
-  "framework": "nextjs",
-  "installCommand": "cd absen-smp && npm install",
-  "buildCommand": "cd absen-smp && npm run build",
-  "outputDirectory": "absen-smp/.next",
-  "rootDirectory": "absen-smp"
-}
