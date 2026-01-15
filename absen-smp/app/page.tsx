@@ -104,6 +104,8 @@ export default function Home() {
   const notifTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const scanCloseTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const qrScannerRef = useRef<Html5Qrcode | null>(null);
+  const scannerRunningRef = useRef<boolean>(false);
+  const processAbsensiRef = useRef<(barcodeId: string) => Promise<void>>(null!);
   const [todayDate] = useState<string>(getTodayDate());
   const isClientReady = todayDate !== "";
 
@@ -396,16 +398,25 @@ export default function Home() {
   }, [siswaData, showNotif, handleUpdateSiswa]);
 
   useEffect(() => {
+    processAbsensiRef.current = processAbsensi;
+  }, [processAbsensi]);
+
+  useEffect(() => {
     if (!scanModalOpen) {
       if (qrScannerRef.current) {
         const scanner = qrScannerRef.current;
         qrScannerRef.current = null;
-        scanner
-          .stop()
-          .catch(() => undefined)
-          .finally(() => {
-            scanner.clear();
-          });
+        if (scannerRunningRef.current) {
+          scannerRunningRef.current = false;
+          scanner
+            .stop()
+            .catch(() => undefined)
+            .finally(() => {
+              scanner.clear();
+            });
+        } else {
+          scanner.clear();
+        }
       }
       setScanFeedback(null);
       setScanStatus("idle");
@@ -445,14 +456,18 @@ export default function Home() {
           (decodedText) => {
             if (!decodedText) return;
             setScanStatus("success");
-            processAbsensi(decodedText);
-            scanner.stop().catch(() => undefined);
+            processAbsensiRef.current(decodedText);
+            if (scannerRunningRef.current) {
+              scannerRunningRef.current = false;
+              scanner.stop().catch(() => undefined);
+            }
             scanCloseTimeoutRef.current = setTimeout(() => {
               setScanModalOpen(false);
             }, 1500);
           },
           () => undefined,
         );
+        scannerRunningRef.current = true;
       } catch (error) {
         const err = error as { name?: string; message?: string };
         const reason = err?.name || err?.message || "UnknownError";
@@ -474,15 +489,20 @@ export default function Home() {
       if (qrScannerRef.current) {
         const scanner = qrScannerRef.current;
         qrScannerRef.current = null;
-        scanner
-          .stop()
-          .catch(() => undefined)
-          .finally(() => {
-            scanner.clear();
-          });
+        if (scannerRunningRef.current) {
+          scannerRunningRef.current = false;
+          scanner
+            .stop()
+            .catch(() => undefined)
+            .finally(() => {
+              scanner.clear();
+            });
+        } else {
+          scanner.clear();
+        }
       }
     };
-  }, [scanModalOpen, scanSession, processAbsensi, showNotif]);
+  }, [scanModalOpen, scanSession, showNotif]);
   const handlePlusPoin = async (siswa: SiswaRecord) => {
     const todayDate = getTodayDate();
     if (siswa.absen_hari_ini !== todayDate) {
