@@ -2,8 +2,8 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import JsBarcode from "jsbarcode";
-import { BrowserMultiFormatReader } from "@zxing/library";
+import { Html5Qrcode } from "html5-qrcode";
+import QRCode from "qrcode";
 import { supabase } from "@/lib/supabaseClient";
 
 type SiswaRecord = {
@@ -60,7 +60,11 @@ const defaultConfig: ConfigState = {
 type ViewMode = "leaderboard" | "admin";
 
 function getTodayDate() {
-  return new Date().toISOString().split("T")[0];
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  const day = String(now.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
 }
 
 function generateBarcodeId() {
@@ -79,6 +83,7 @@ export default function Home() {
   const [scanStatus, setScanStatus] = useState<"idle" | "scanning" | "success" | "error">("idle");
   const [barcodeModalOpen, setBarcodeModalOpen] = useState(false);
   const [barcodeTarget, setBarcodeTarget] = useState<SiswaRecord | null>(null);
+  const [qrDataUrl, setQrDataUrl] = useState<string>("");
   const [confirmDeleteIds, setConfirmDeleteIds] = useState<Record<string, boolean>>({});
   const [confirmDeletePelanggaranIds, setConfirmDeletePelanggaranIds] = useState<
     Record<string, boolean>
@@ -93,11 +98,12 @@ export default function Home() {
   const [formPoinJumlah, setFormPoinJumlah] = useState("");
   const [manualBarcode, setManualBarcode] = useState("");
   const [notif, setNotif] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [scanFeedback, setScanFeedback] = useState<{ name: string; message: string; ok: boolean } | null>(null);
   const notifTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const scanCloseTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const scannerRef = useRef<BrowserMultiFormatReader | null>(null);
-  const videoRef = useRef<HTMLVideoElement | null>(null);
+  const qrScannerRef = useRef<Html5Qrcode | null>(null);
   const [todayDate] = useState<string>(getTodayDate());
   const isClientReady = todayDate !== "";
 
@@ -124,26 +130,46 @@ export default function Home() {
 
   const totalSiswa = filteredSiswa.length;
   const totalPoin = filteredSiswa.reduce((sum, s) => sum + s.poin, 0);
+  const totalSiswaLabel = isLoading ? "-" : totalSiswa.toString();
+  const totalPoinLabel = isLoading ? "-" : totalPoin.toString();
 
-  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
+    let isActive = true;
     const fetchAll = async () => {
-      const { data: siswaRows } = await supabase
-        .from("records")
-        .select("*")
-        .eq("type", "siswa")
-        .order("poin", { ascending: false });
-      const { data: pelanggaranRows } = await supabase
-        .from("records")
-        .select("*")
-        .eq("type", "pelanggaran")
-        .order("poin_pelanggaran", { ascending: true });
+      setIsLoading(true);
+      setLoadError(null);
+      try {
+        const { data: siswaRows, error: siswaError } = await supabase
+          .from("records")
+          .select("*")
+          .eq("type", "siswa")
+          .order("poin", { ascending: false });
+        if (siswaError) throw siswaError;
 
-      setSiswaData((siswaRows as SiswaRecord[]) || []);
-      setPelanggaranData((pelanggaranRows as PelanggaranRecord[]) || []);
+        const { data: pelanggaranRows, error: pelanggaranError } = await supabase
+          .from("records")
+          .select("*")
+          .eq("type", "pelanggaran")
+          .order("poin_pelanggaran", { ascending: true });
+        if (pelanggaranError) throw pelanggaranError;
+
+        if (!isActive) return;
+        setSiswaData((siswaRows as SiswaRecord[]) || []);
+        setPelanggaranData((pelanggaranRows as PelanggaranRecord[]) || []);
+      } catch {
+        if (!isActive) return;
+        setLoadError("Gagal memuat data. Periksa koneksi dan konfigurasi Supabase.");
+        setSiswaData([]);
+        setPelanggaranData([]);
+      } finally {
+        if (isActive) setIsLoading(false);
+      }
     };
 
     fetchAll();
+    return () => {
+      isActive = false;
+    };
   }, []);
 
   useEffect(() => {
@@ -159,18 +185,15 @@ export default function Home() {
 
   useEffect(() => {
     if (barcodeModalOpen && barcodeTarget) {
-      const svg = document.getElementById("barcodeSvg") as SVGSVGElement | null;
-      if (svg) {
-        JsBarcode(svg, barcodeTarget.barcode_id, {
-          format: "CODE128",
-          width: 2,
-          height: 80,
-          displayValue: false,
-          background: "#ffffff",
-          lineColor: "#000000",
-          margin: 10,
-        });
-      }
+      QRCode.toDataURL(barcodeTarget.barcode_id, {
+        width: 260,
+        margin: 1,
+        color: { dark: "#0f172a", light: "#ffffff" },
+      })
+        .then((url: string) => setQrDataUrl(url))
+        .catch(() => setQrDataUrl(""));
+    } else {
+      setQrDataUrl("");
     }
   }, [barcodeModalOpen, barcodeTarget]);
 
@@ -179,19 +202,29 @@ export default function Home() {
   }, []);
 
   const refreshData = useCallback(async () => {
-    const { data: siswaRows } = await supabase
-      .from("records")
-      .select("*")
-      .eq("type", "siswa")
-      .order("poin", { ascending: false });
-    const { data: pelanggaranRows } = await supabase
-      .from("records")
-      .select("*")
-      .eq("type", "pelanggaran")
-      .order("poin_pelanggaran", { ascending: true });
-    setSiswaData((siswaRows as SiswaRecord[]) || []);
-    setPelanggaranData((pelanggaranRows as PelanggaranRecord[]) || []);
-  }, []);
+    setLoadError(null);
+    try {
+      const { data: siswaRows, error: siswaError } = await supabase
+        .from("records")
+        .select("*")
+        .eq("type", "siswa")
+        .order("poin", { ascending: false });
+      if (siswaError) throw siswaError;
+
+      const { data: pelanggaranRows, error: pelanggaranError } = await supabase
+        .from("records")
+        .select("*")
+        .eq("type", "pelanggaran")
+        .order("poin_pelanggaran", { ascending: true });
+      if (pelanggaranError) throw pelanggaranError;
+
+      setSiswaData((siswaRows as SiswaRecord[]) || []);
+      setPelanggaranData((pelanggaranRows as PelanggaranRecord[]) || []);
+    } catch {
+      setLoadError("Gagal memuat data. Periksa koneksi dan konfigurasi Supabase.");
+      showNotif("\u{274C} Gagal memuat data terbaru");
+    }
+  }, [showNotif]);
 
   const handleAddSiswa = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -214,7 +247,7 @@ export default function Home() {
       kehadiran: 0,
       dibuat: new Date().toISOString(),
       barcode_id: barcodeId,
-      absen_hari_ini: "",
+      absen_hari_ini: null,
     });
 
     if (!error) {
@@ -223,7 +256,7 @@ export default function Home() {
       showNotif(`\u{2705} ${nama} (${kelas}) berhasil ditambahkan!`);
       refreshData();
     } else {
-      showNotif("\u{274C} Gagal menambahkan siswa");
+      showNotif(`\u{274C} Gagal menambahkan siswa: ${error.message}`);
     }
   };
 
@@ -253,7 +286,7 @@ export default function Home() {
       showNotif(`\u{2705} Pelanggaran "${nama}" (${poin}) ditambahkan!`);
       refreshData();
     } else {
-      showNotif("\u{274C} Gagal menambahkan pelanggaran");
+      showNotif(`\u{274C} Gagal menambahkan pelanggaran: ${error.message}`);
     }
   };
 
@@ -293,6 +326,9 @@ export default function Home() {
       .eq("type", "siswa");
 
     if (!error) {
+      setSiswaData((prev) =>
+        prev.map((item) => (item.id === siswa.id ? { ...item, ...updates } : item)),
+      );
       refreshData();
       return true;
     }
@@ -361,8 +397,16 @@ export default function Home() {
 
   useEffect(() => {
     if (!scanModalOpen) {
-      scannerRef.current?.reset();
-      scannerRef.current = null;
+      if (qrScannerRef.current) {
+        const scanner = qrScannerRef.current;
+        qrScannerRef.current = null;
+        scanner
+          .stop()
+          .catch(() => undefined)
+          .finally(() => {
+            scanner.clear();
+          });
+      }
       setScanFeedback(null);
       setScanStatus("idle");
       if (scanCloseTimeoutRef.current) {
@@ -382,61 +426,42 @@ export default function Home() {
       return;
     }
 
-    const reader = new BrowserMultiFormatReader();
-    scannerRef.current = reader;
-    const videoEl = videoRef.current;
-    if (!videoEl) return;
+    const scanner = new Html5Qrcode("qr-reader");
+    qrScannerRef.current = scanner;
 
     const startScan = async () => {
       try {
-        const previewStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
-        previewStream.getTracks().forEach((track) => track.stop());
-
-        const devices = (await navigator.mediaDevices.enumerateDevices()).filter(
-          (device: MediaDeviceInfo) => device.kind === "videoinput",
-        );
-        const preferredDevice = devices.find((device: MediaDeviceInfo) =>
+        const devices = await Html5Qrcode.getCameras();
+        const preferredDevice = devices.find((device) =>
           /back|rear|environment/i.test(device.label),
         );
-        const deviceId = preferredDevice?.deviceId || devices[0]?.deviceId || null;
-        const onResult = (result: unknown) => {
-          if (result) {
-            const text = (result as { getText?: () => string }).getText?.() ?? "";
-            if (!text) return;
+        const deviceId = preferredDevice?.id || devices[0]?.id;
+        if (!deviceId) {
+          throw new Error("NoCameraFound");
+        }
+        await scanner.start(
+          { deviceId: { exact: deviceId } },
+          { fps: 10, qrbox: { width: 260, height: 260 } },
+          (decodedText) => {
+            if (!decodedText) return;
             setScanStatus("success");
-            processAbsensi(text);
-            scannerRef.current?.reset();
+            processAbsensi(decodedText);
+            scanner.stop().catch(() => undefined);
             scanCloseTimeoutRef.current = setTimeout(() => {
               setScanModalOpen(false);
             }, 1500);
-          }
-        };
-
-        if (deviceId) {
-          await reader.decodeFromVideoDevice(deviceId, videoEl, onResult);
-          return;
-        }
-
-        await reader.decodeFromConstraints(
-          {
-            video: {
-              facingMode: { ideal: "environment" },
-              width: { ideal: 1280 },
-              height: { ideal: 720 },
-            },
-            audio: false,
           },
-          videoEl,
-          onResult,
+          () => undefined,
         );
       } catch (error) {
         const err = error as { name?: string; message?: string };
-        const reason = err?.name || "UnknownError";
+        const reason = err?.name || err?.message || "UnknownError";
         let message = "Tidak bisa mengakses kamera";
         if (reason === "NotAllowedError") message = "Izin kamera ditolak. Silakan izinkan kamera.";
         if (reason === "NotFoundError") message = "Kamera tidak ditemukan.";
         if (reason === "NotReadableError") message = "Kamera sedang dipakai aplikasi lain.";
         if (reason === "SecurityError") message = "Gunakan https atau localhost untuk akses kamera.";
+        if (reason === "NoCameraFound") message = "Kamera tidak ditemukan.";
         showNotif(`\u{274C} ${message}`);
         setScanFeedback({ name: "Kamera", message, ok: false });
         setScanStatus("error");
@@ -446,10 +471,18 @@ export default function Home() {
     startScan();
 
     return () => {
-      reader.reset();
+      if (qrScannerRef.current) {
+        const scanner = qrScannerRef.current;
+        qrScannerRef.current = null;
+        scanner
+          .stop()
+          .catch(() => undefined)
+          .finally(() => {
+            scanner.clear();
+          });
+      }
     };
   }, [scanModalOpen, scanSession, processAbsensi, showNotif]);
-  /* eslint-enable react-hooks/set-state-in-effect */
   const handlePlusPoin = async (siswa: SiswaRecord) => {
     const todayDate = getTodayDate();
     if (siswa.absen_hari_ini !== todayDate) {
@@ -511,17 +544,25 @@ export default function Home() {
 
   const handleDownloadBarcode = async (siswa: SiswaRecord) => {
     showNotif("\u{23F3} Memproses download...");
-    const svg = document.getElementById("barcodeSvg") as SVGSVGElement | null;
-    if (!svg) return;
-    const svgData = new XMLSerializer().serializeToString(svg);
     const canvas = document.createElement("canvas");
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
-    const img = new Image();
-    img.onload = () => {
+    let qrDataUrl = "";
+    try {
+      qrDataUrl = await QRCode.toDataURL(siswa.barcode_id, {
+        width: 360,
+        margin: 2,
+        color: { dark: "#0f172a", light: "#ffffff" },
+      });
+    } catch {
+      qrDataUrl = "";
+    }
+
+    const qrImg = new Image();
+    qrImg.onload = () => {
       canvas.width = 900;
-      canvas.height = 520;
+      canvas.height = 560;
 
       ctx.fillStyle = "#ffffff";
       ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -548,17 +589,21 @@ export default function Home() {
       ctx.fillStyle = "#64748b";
       ctx.fillText(`Kelas: ${siswa.kelas}`, canvas.width / 2, 178);
 
-      const barcodeMaxWidth = canvas.width - 160;
-      const scale = Math.min(1, barcodeMaxWidth / img.width);
-      const barcodeWidth = img.width * scale;
-      const barcodeHeight = img.height * scale;
-      const barcodeX = (canvas.width - barcodeWidth) / 2;
-      const barcodeY = 210;
-      ctx.drawImage(img, barcodeX, barcodeY, barcodeWidth, barcodeHeight);
+      if (qrDataUrl) {
+        const qrSize = 260;
+        const qrX = (canvas.width - qrSize) / 2;
+        const qrY = 210;
+        ctx.fillStyle = "#f8fafc";
+        ctx.fillRect(qrX - 12, qrY - 12, qrSize + 24, qrSize + 24);
+        ctx.strokeStyle = "#e2e8f0";
+        ctx.lineWidth = 2;
+        ctx.strokeRect(qrX - 12, qrY - 12, qrSize + 24, qrSize + 24);
+        ctx.drawImage(qrImg, qrX, qrY, qrSize, qrSize);
+      }
 
       ctx.font = "bold 20px Courier New";
       ctx.fillStyle = "#0f172a";
-      ctx.fillText(siswa.barcode_id, canvas.width / 2, barcodeY + barcodeHeight + 36);
+      ctx.fillText(siswa.barcode_id, canvas.width / 2, 210 + 260 + 44);
 
       ctx.textAlign = "left";
       ctx.font = "14px Arial";
@@ -587,8 +632,10 @@ export default function Home() {
         showNotif(`\u{2705} Kartu ${siswa.nama} berhasil didownload!`);
       }, "image/png");
     };
-    img.onerror = () => showNotif("\u{274C} Gagal membuat gambar barcode");
-    img.src = `data:image/svg+xml;base64,${btoa(unescape(encodeURIComponent(svgData)))}`;
+    qrImg.onerror = () => showNotif("\u{274C} Gagal membuat QR code");
+    if (qrDataUrl) {
+      qrImg.src = qrDataUrl;
+    }
   };
 
   const textColor = config.text_color || defaultConfig.text_color;
@@ -645,6 +692,42 @@ export default function Home() {
           className="max-w-7xl mx-auto p-4 md:p-8 fade-in relative z-10"
           style={{ fontSize: `${baseSize}px`, fontFamily: `${config.font_family}, sans-serif` }}
         >
+          {loadError ? (
+            <div className="glass-card rounded-2xl p-4 md:p-6 mb-4 md:mb-6 premium-shadow">
+              <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+                <div>
+                  <p className="font-semibold" style={{ color: textColor, fontSize: `${baseSize}px` }}>
+                    {"\u{26A0}\u{FE0F}"} {loadError}
+                  </p>
+                  <p style={{ color: "#64748b", fontSize: `${baseSize * 0.85}px` }}>
+                    Coba muat ulang setelah memastikan env Supabase benar.
+                  </p>
+                </div>
+                <button
+                  className="luxury-button px-5 py-2.5 rounded-xl font-semibold"
+                  style={{ background: primaryColor, color: "white", fontSize: `${baseSize * 0.9}px` }}
+                  onClick={() => refreshData()}
+                >
+                  Muat Ulang
+                </button>
+              </div>
+            </div>
+          ) : null}
+
+          {isLoading ? (
+            <div className="glass-card rounded-2xl p-4 md:p-6 mb-4 md:mb-6 premium-shadow">
+              <div className="flex items-center gap-3">
+                <div
+                  className="h-3 w-3 rounded-full"
+                  style={{ background: primaryColor, animation: "pulse 1.5s ease-in-out infinite" }}
+                />
+                <p style={{ color: textColor, fontSize: `${baseSize * 0.95}px`, fontWeight: 600 }}>
+                  Memuat data siswa...
+                </p>
+              </div>
+            </div>
+          ) : null}
+
           {currentView === "leaderboard" ? (
             <>
               <div className="glass-card rounded-2xl p-4 md:p-8 mb-4 md:mb-8 premium-shadow">
@@ -673,7 +756,7 @@ export default function Home() {
                 </div>
               </div>
 
-              {kelasList.length > 0 ? (
+              {kelasList.length > 0 && !isLoading ? (
                 <div className="glass-card rounded-2xl p-4 md:p-6 mb-4 md:mb-8 premium-shadow">
                   <div className="flex flex-col sm:flex-row sm:items-center gap-3 flex-wrap">
                     <label className="font-semibold" style={{ fontSize: `${baseSize * 0.9}px`, color: textColor }}>
@@ -730,7 +813,7 @@ export default function Home() {
                         Total Siswa{selectedKelas !== "all" ? ` - ${selectedKelas}` : ""}
                       </div>
                       <div className="font-bold" style={{ fontSize: `${baseSize * 2}px`, color: primaryColor }}>
-                        {totalSiswa}
+                        {totalSiswaLabel}
                       </div>
                     </div>
                     <div style={{ fontSize: 36, opacity: 0.2 }}>{"\u{1F465}"}</div>
@@ -750,7 +833,7 @@ export default function Home() {
                         Total Poin{selectedKelas !== "all" ? ` - ${selectedKelas}` : ""}
                       </div>
                       <div className="font-bold" style={{ fontSize: `${baseSize * 2}px`, color: primaryColor }}>
-                        {totalPoin}
+                        {totalPoinLabel}
                       </div>
                     </div>
                     <div style={{ fontSize: 36, opacity: 0.2 }}>{"\u{2B50}"}</div>
@@ -759,7 +842,14 @@ export default function Home() {
               </div>
 
               <div className="space-y-3 md:space-y-5">
-                {filteredSiswa.length === 0 ? (
+                {isLoading ? (
+                  <div className="glass-card rounded-2xl text-center py-16 md:py-24 premium-shadow">
+                    <div style={{ fontSize: `${baseSize * 3.5}px`, marginBottom: 16, opacity: 0.2 }}>{"\u{23F3}"}</div>
+                    <p style={{ fontSize: `${baseSize}px`, color: "#94a3b8", fontWeight: 500 }}>
+                      Memuat data siswa...
+                    </p>
+                  </div>
+                ) : filteredSiswa.length === 0 ? (
                   <div className="glass-card rounded-2xl text-center py-16 md:py-24 premium-shadow">
                     <div style={{ fontSize: `${baseSize * 4}px`, marginBottom: 16, opacity: 0.15 }}>{"\u{1F4ED}"}</div>
                     <p style={{ fontSize: `${baseSize}px`, color: "#94a3b8", fontWeight: 500 }}>
@@ -1451,13 +1541,21 @@ export default function Home() {
       </div>
       {scanModalOpen ? (
         <div className="modal-overlay">
-          <div className="glass-card rounded-3xl p-6 md:p-8 max-w-2xl w-full mx-4 premium-shadow">
+          <div className="glass-card rounded-3xl p-6 md:p-8 max-w-xl w-full mx-4 premium-shadow">
             <h2 className="font-bold mb-4 text-center" style={{ fontSize: `${baseSize * 1.8}px`, color: textColor }}>
               {"\u{1F4F1}"} Scan Barcode/QR Siswa
             </h2>
             <p className="text-center mb-4" style={{ fontSize: `${baseSize}px`, color: textColor, opacity: 0.7 }}>
               Pastikan izin kamera aktif dan gunakan koneksi `https` atau `localhost`.
             </p>
+            <div className="scanner-frame mb-6 mx-auto">
+              <div id="qr-reader" style={{ width: "100%", height: "100%" }} />
+              <div className="scan-line" />
+              <div className="corner-tl" />
+              <div className="corner-tr" />
+              <div className="corner-bl" />
+              <div className="corner-br" />
+            </div>
             <div className="flex items-center justify-center mb-4">
               <div
                 className="px-4 py-2 rounded-2xl font-semibold"
@@ -1468,19 +1566,6 @@ export default function Home() {
               >
                 {scanStatusLabel}
               </div>
-            </div>
-            <div className="scanner-frame mb-6 mx-auto">
-              <video
-                ref={videoRef}
-                playsInline
-                muted
-                style={{ width: "100%", height: "100%", objectFit: "cover" }}
-              />
-              <div className="scan-line" />
-              <div className="corner-tl" />
-              <div className="corner-tr" />
-              <div className="corner-bl" />
-              <div className="corner-br" />
             </div>
             <div
               className="rounded-2xl p-4 mb-6 mx-auto"
@@ -1582,6 +1667,26 @@ export default function Home() {
                       </span>
                     </div>
                   </div>
+                  <button
+                    className="luxury-button"
+                    onClick={() => setBarcodeModalOpen(false)}
+                    style={{
+                      position: "absolute",
+                      top: 18,
+                      right: 18,
+                      width: 42,
+                      height: 42,
+                      borderRadius: 12,
+                      background: "rgba(255, 255, 255, 0.15)",
+                      color: "white",
+                      border: "1px solid rgba(255, 255, 255, 0.3)",
+                      fontSize: `${baseSize * 1.1}px`,
+                      fontWeight: 700,
+                    }}
+                    aria-label="Tutup"
+                  >
+                    X
+                  </button>
                 </div>
 
                 <div className="p-8">
@@ -1615,14 +1720,56 @@ export default function Home() {
                     </div>
                   </div>
 
-                  <div className="bg-white p-8 rounded-2xl" style={{ boxShadow: "0 10px 30px rgba(0, 0, 0, 0.3)" }}>
+                  <div className="bg-white p-6 md:p-8 rounded-2xl" style={{ boxShadow: "0 10px 30px rgba(0, 0, 0, 0.3)" }}>
                     <p className="text-center mb-4 font-black" style={{ fontSize: `${baseSize * 1.5}px`, color: "#1e293b", letterSpacing: 1 }}>
                       {barcodeTarget.nama}
                     </p>
-                    <svg id="barcodeSvg" style={{ width: "100%" }} />
-                    <p className="text-center mt-4 font-black" style={{ fontSize: `${baseSize * 1.3}px`, color: "#1e293b", fontFamily: "Courier New, monospace", letterSpacing: 3 }}>
+                    {qrDataUrl ? (
+                      <div
+                        style={{
+                          width: "60%",
+                          margin: "0 auto",
+                          padding: 12,
+                          borderRadius: 14,
+                          border: "2px solid #e2e8f0",
+                          background: "#f8fafc",
+                        }}
+                      >
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={qrDataUrl} alt="QR Code" style={{ width: "100%", height: "auto", display: "block" }} />
+                      </div>
+                    ) : (
+                      <div className="text-center py-8" style={{ color: "#64748b", fontSize: `${baseSize * 0.9}px` }}>
+                        QR code tidak tersedia
+                      </div>
+                    )}
+                    <p className="text-center mt-4 font-black" style={{ fontSize: `${baseSize * 1.1}px`, color: "#1e293b", fontFamily: "Courier New, monospace", letterSpacing: 2 }}>
                       {barcodeTarget.barcode_id}
                     </p>
+                    <svg id="barcodeSvg" style={{ display: "none" }} />
+                    <div className="mt-5">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <button
+                          className="luxury-button w-full px-6 py-3 rounded-xl font-bold shadow-lg"
+                          style={{ background: `linear-gradient(135deg, ${secondaryColor}, #059669)`, color: "white", fontSize: `${baseSize * 0.95}px` }}
+                          onClick={() => handleDownloadBarcode(barcodeTarget)}
+                        >
+                          {"\u{2B07}\u{FE0F}"} Download
+                        </button>
+                        <button
+                          className="luxury-button w-full px-6 py-3 rounded-xl font-bold shadow-lg"
+                          style={{
+                            background: "rgba(15, 23, 42, 0.08)",
+                            color: "#0f172a",
+                            border: "1px solid rgba(15, 23, 42, 0.12)",
+                            fontSize: `${baseSize * 0.95}px`,
+                          }}
+                          onClick={() => setBarcodeModalOpen(false)}
+                        >
+                          {"\u{2B05}\u{FE0F}"} Kembali
+                        </button>
+                      </div>
+                    </div>
                   </div>
 
                   <div className="mt-6 flex items-center justify-between">
@@ -1653,33 +1800,7 @@ export default function Home() {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4 mt-8" style={{ animation: "fadeIn 0.8s ease 0.4s both" }}>
-              <button
-                className="luxury-button px-8 py-5 rounded-2xl font-bold shadow-lg"
-                style={{ background: `linear-gradient(135deg, ${secondaryColor}, #059669)`, color: "white", fontSize: `${baseSize * 1.1}px` }}
-                onClick={() => handleDownloadBarcode(barcodeTarget)}
-              >
-                <span className="flex items-center justify-center gap-2">
-                  <span style={{ fontSize: `${baseSize * 1.8}px` }}>{"\u{2B07}\u{FE0F}"}</span>
-                  <span>Download Kartu</span>
-                </span>
-              </button>
-              <button
-                className="luxury-button px-8 py-5 rounded-2xl font-bold shadow-lg"
-                style={{
-                  background: "rgba(255, 255, 255, 0.1)",
-                  color: "white",
-                  border: "2px solid rgba(255, 255, 255, 0.2)",
-                  fontSize: `${baseSize * 1.1}px`,
-                }}
-                onClick={() => setBarcodeModalOpen(false)}
-              >
-                <span className="flex items-center justify-center gap-2">
-                  <span style={{ fontSize: `${baseSize * 1.8}px` }}>{"\u{2716}\u{FE0F}"}</span>
-                  <span>Tutup</span>
-                </span>
-              </button>
-            </div>
+            <div className="mt-6" />
 
             <div className="mt-6 glass-card p-6 rounded-2xl premium-shadow" style={{ animation: "fadeIn 0.9s ease 0.5s both" }}>
               <h3 className="font-bold mb-3 flex items-center gap-2" style={{ fontSize: `${baseSize * 1.1}px`, color: textColor }}>
