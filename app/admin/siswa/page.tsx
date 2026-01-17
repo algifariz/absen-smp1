@@ -435,7 +435,7 @@ export default function KelolaSiswaPage() {
                           return (
                             <Fragment key={siswa.id}>
                               <tr>
-                                <td>
+                                <td data-label="Nama">
                                   <input
                                     className="table-input"
                                     value={editingNama[siswa.id] ?? siswa.nama}
@@ -455,17 +455,17 @@ export default function KelolaSiswaPage() {
                                   />
                                   <div className="list__meta">{siswa.barcode_id}</div>
                                 </td>
-                                <td>{siswa.kelas || "-"}</td>
-                                <td>
+                                <td data-label="Kelas">{siswa.kelas || "-"}</td>
+                                <td data-label="Saldo Poin">
                                   <span className={`chip ${pointClass}`}>{siswa.poin}</span>
                                 </td>
-                                <td>
+                                <td data-label="Status">
                                   <span className="pill">
                                     <span className={`dot dot--${statusVariant}`} />
                                     {statusLabel}
                                   </span>
                                 </td>
-                                <td className="td-right">
+                                <td data-label="Aksi" className="td-right">
                                   <button
                                     className="btn btn--ghost btn--sm"
                                     type="button"
