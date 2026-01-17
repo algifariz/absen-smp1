@@ -946,14 +946,14 @@ export default function Home() {
                     <span className="nav__icon">👥</span>
                     <span>Kelola Siswa</span>
                   </Link>
-                  <button className="nav__item" type="button">
+                  <Link className="nav__item" href="/admin/pelanggaran">
                     <span className="nav__icon">⚠️</span>
                     <span>Pelanggaran</span>
-                  </button>
-                  <button className="nav__item" type="button">
+                  </Link>
+                  <Link className="nav__item" href="/admin/poin">
                     <span className="nav__icon">⭐</span>
                     <span>Poin</span>
-                  </button>
+                  </Link>
                 </nav>
 
                 <div className="sidebar__footer">
@@ -1136,72 +1136,7 @@ export default function Home() {
                     </div>
                   </article>
 
-                  <article className="card">
-                    <div className="card__head">
-                      <div>
-                        <h2 className="card__title">Tambah Poin Custom</h2>
-                        <p className="card__desc">Tambahkan poin ke siswa tertentu (reward/penalty).</p>
-                      </div>
-                      <span className="badge badge--amber">Poin</span>
-                    </div>
-
-                    <form className="form" onSubmit={handleAddPoinCustom}>
-                      <div className="field">
-                        <label className="label" htmlFor="cariSiswa">
-                          Cari Siswa
-                        </label>
-                        <input
-                          className="input"
-                          id="cariSiswa"
-                          placeholder="Nama / NIS / Kelas..."
-                          type="text"
-                          list="siswa-options"
-                          value={formPoinSiswaQuery}
-                          onChange={(e) => {
-                            const value = e.target.value;
-                            setFormPoinSiswaQuery(value);
-                            const match = siswaData.find(
-                              (item) => `${item.nama} (${item.kelas})` === value,
-                            );
-                            setFormPoinSiswaId(match?.id ?? "");
-                          }}
-                        />
-                        <datalist id="siswa-options">
-                          {siswaData.map((siswa) => (
-                            <option key={siswa.id} value={`${siswa.nama} (${siswa.kelas})`} />
-                          ))}
-                        </datalist>
-                      </div>
-
-                      <div className="field">
-                        <label className="label" htmlFor="jumlahPoin">
-                          Jumlah Poin
-                        </label>
-                        <input
-                          className="input"
-                          id="jumlahPoin"
-                          type="number"
-                          placeholder="Contoh: 5 atau -10"
-                          value={formPoinJumlah}
-                          onChange={(e) => setFormPoinJumlah(e.target.value)}
-                          min={1}
-                        />
-                      </div>
-
-                      <div className="field">
-                        <label className="label" htmlFor="catatanPoin">
-                          Catatan
-                        </label>
-                        <input className="input" id="catatanPoin" placeholder="Contoh: Membantu kebersihan kelas" />
-                      </div>
-
-                      <div className="actions">
-                        <button className="btn btn--primary" type="submit">
-                          + Tambah Poin
-                        </button>
-                      </div>
-                    </form>
-                  </article>
+                  
 
                   
                 </section>
@@ -1511,6 +1446,7 @@ export default function Home() {
     </div>
   );
 }
+
 
 
 

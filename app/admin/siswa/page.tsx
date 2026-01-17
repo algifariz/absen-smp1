@@ -263,14 +263,14 @@ export default function KelolaSiswaPage() {
                 <span className="nav__icon">👥</span>
                 <span>Kelola Siswa</span>
               </Link>
-              <button className="nav__item" type="button">
+              <Link className="nav__item" href="/admin/pelanggaran">
                 <span className="nav__icon">⚠️</span>
                 <span>Pelanggaran</span>
-              </button>
-              <button className="nav__item" type="button">
+              </Link>
+              <Link className="nav__item" href="/admin/poin">
                 <span className="nav__icon">⭐</span>
                 <span>Poin</span>
-              </button>
+              </Link>
             </nav>
 
             <div className="sidebar__footer">
