@@ -1,7 +1,8 @@
 ﻿
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Html5Qrcode } from "html5-qrcode";
 import QRCode from "qrcode";
 import { supabase } from "@/lib/supabaseClient";
@@ -106,6 +107,7 @@ export default function Home() {
   const qrScannerRef = useRef<Html5Qrcode | null>(null);
   const scannerRunningRef = useRef<boolean>(false);
   const processAbsensiRef = useRef<(barcodeId: string) => Promise<void>>(null!);
+  const addSiswaRef = useRef<HTMLInputElement | null>(null);
   const [todayDate] = useState<string>(getTodayDate());
   const isClientReady = todayDate !== "";
 
@@ -877,685 +879,334 @@ export default function Home() {
                     </p>
                   </div>
                 ) : (
-                  filteredSiswa.map((siswa, index) => {
-                    let medalIcon: React.ReactNode = null;
-                    let cardClasses = "glass-card";
-                    if (index === 0) {
-                      medalIcon = <div className="text-4xl md:text-6xl">{"\u{1F947}"}</div>;
-                      cardClasses = "animated-border glass-card";
-                    } else if (index === 1) {
-                      medalIcon = <div className="text-4xl md:text-6xl">{"\u{1F948}"}</div>;
-                    } else if (index === 2) {
-                      medalIcon = <div className="text-4xl md:text-6xl">{"\u{1F949}"}</div>;
-                    } else {
-                      medalIcon = (
-                        <div className="rank-badge w-12 h-12 md:w-14 md:h-14 rounded-xl flex items-center justify-center">
-                          <span style={{ fontSize: `${baseSize}px`, fontWeight: 700, color: "#64748b" }}>
-                            #{index + 1}
-                          </span>
-                        </div>
-                      );
-                    }
-
-                    return (
-                      <div key={siswa.id} className={`${cardClasses} rounded-2xl p-4 md:p-6 premium-shadow`}>
-                        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                          <div className="flex items-center gap-3 md:gap-6 w-full sm:w-auto">
-                            <div className="text-center" style={{ minWidth: 50 }}>
-                              {medalIcon}
+                  filteredSiswa.map((siswa) => (
+                    <div key={siswa.id} className="glass-card rounded-2xl p-4 md:p-6 premium-shadow">
+                      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                        <div className="flex items-center gap-3 md:gap-6 w-full sm:w-auto">
+                          <div className="flex-1">
+                            <div className="font-semibold mb-2" style={{ fontSize: `${baseSize * 1.1}px`, color: textColor }}>
+                              {siswa.nama}
                             </div>
-                            <div className="flex-1">
-                              <div className="font-semibold mb-2" style={{ fontSize: `${baseSize * 1.1}px`, color: textColor }}>
-                                {siswa.nama}
-                              </div>
-                              <div className="flex items-center gap-2 flex-wrap">
-                                {siswa.kelas ? (
-                                  <div className="px-2.5 py-1 rounded-lg" style={{ background: "#eff6ff", border: "1px solid #bfdbfe" }}>
-                                    <span style={{ fontSize: `${baseSize * 0.75}px`, color: "#2563eb", fontWeight: 600 }}>
-                                      Kelas {siswa.kelas}
-                                    </span>
-                                  </div>
-                                ) : null}
-                                <div className="px-2.5 py-1 rounded-lg" style={{ background: "#f0fdf4", border: "1px solid #bbf7d0" }}>
-                                  <span style={{ fontSize: `${baseSize * 0.75}px`, color: "#16a34a", fontWeight: 600 }}>
-                                    {"\u{2705}"} {siswa.kehadiran}
+                            <div className="flex items-center gap-2 flex-wrap">
+                              {siswa.kelas ? (
+                                <div className="px-2.5 py-1 rounded-lg" style={{ background: "#eff6ff", border: "1px solid #bfdbfe" }}>
+                                  <span style={{ fontSize: `${baseSize * 0.75}px`, color: "#2563eb", fontWeight: 600 }}>
+                                    Kelas {siswa.kelas}
                                   </span>
                                 </div>
+                              ) : null}
+                              <div className="px-2.5 py-1 rounded-lg" style={{ background: "#f0fdf4", border: "1px solid #bbf7d0" }}>
+                                <span style={{ fontSize: `${baseSize * 0.75}px`, color: "#16a34a", fontWeight: 600 }}>
+                                  {"\u{2705}"} {siswa.kehadiran}
+                                </span>
                               </div>
                             </div>
                           </div>
-                          <div
-                            className="px-4 py-2 md:px-6 md:py-3 rounded-xl font-bold w-full sm:w-auto text-center"
-                            style={{ background: primaryColor, color: "white", fontSize: `${baseSize * 1.2}px` }}
-                          >
-                            {siswa.poin} {"\u{2B50}"}
-                          </div>
+                        </div>
+                        <div
+                          className="px-4 py-2 md:px-6 md:py-3 rounded-xl font-bold w-full sm:w-auto text-center"
+                          style={{ background: primaryColor, color: "white", fontSize: `${baseSize * 1.2}px` }}
+                        >
+                          {siswa.poin} {"\u{2B50}"}
                         </div>
                       </div>
-                    );
-                  })
+                    </div>
+                  ))
                 )}
               </div>
             </>
           ) : (
-            <>
-              <div className="glass-card rounded-3xl p-4 md:p-8 mb-4 md:mb-8 premium-shadow">
-                <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-                  <div>
-                    <h1
-                      className="font-black tracking-tight mb-2"
-                      style={{
-                        fontSize: `${baseSize * 2}px`,
-                        color: textColor,
-                        background: `linear-gradient(135deg, ${textColor}, ${primaryColor})`,
-                        WebkitBackgroundClip: "text",
-                        WebkitTextFillColor: "transparent",
-                      }}
-                    >
-                      {config.judul_admin || defaultConfig.judul_admin}
-                    </h1>
-                    <p style={{ fontSize: `${baseSize * 0.85}px`, color: textColor, opacity: 0.6 }}>
-                      Kelola Data Siswa & Poin
-                    </p>
+            <div
+              className="admin-app"
+              style={{
+                ["--admin-primary"]: primaryColor,
+                ["--admin-secondary"]: secondaryColor,
+                ["--admin-text"]: textColor,
+              }}
+            >
+              <aside className="admin-sidebar">
+                <div className="brand">
+                  <div className="brand__logo">📷</div>
+                  <div className="brand__text">
+                    <div className="brand__title">{config.judul_admin || defaultConfig.judul_admin}</div>
+                    <div className="brand__sub">Absensi • Poin • Pelanggaran</div>
                   </div>
-                  <button
-                    className="luxury-button px-6 py-3 md:px-8 md:py-4 rounded-2xl font-bold shadow-lg w-full md:w-auto"
-                    style={{
-                      background: "rgba(255, 255, 255, 0.05)",
-                      color: textColor,
-                      border: "2px solid rgba(255, 255, 255, 0.1)",
-                      fontSize: `${baseSize * 0.9}px`,
-                    }}
-                    onClick={() => setCurrentView("leaderboard")}
-                  >
+                </div>
+
+                <nav className="nav">
+                  <button className="nav__item nav__item--active" type="button">
+                    <span className="nav__icon">📦</span>
+                    <span>Data Master</span>
+                  </button>
+                  <Link className="nav__item" href="/admin/absensi">
+                    <span className="nav__icon">🧾</span>
+                    <span>Operational Absensi</span>
+                  </Link>
+                  <Link className="nav__item" href="/admin/siswa">
+                    <span className="nav__icon">👥</span>
+                    <span>Kelola Siswa</span>
+                  </Link>
+                  <button className="nav__item" type="button">
+                    <span className="nav__icon">⚠️</span>
+                    <span>Pelanggaran</span>
+                  </button>
+                  <button className="nav__item" type="button">
+                    <span className="nav__icon">⭐</span>
+                    <span>Poin</span>
+                  </button>
+                </nav>
+
+                <div className="sidebar__footer">
+                  <div className="pill">
+                    <span className="dot dot--ok" />
+                    <span>Online</span>
+                  </div>
+                  <button className="btn btn--ghost w-full" type="button" onClick={() => setCurrentView("leaderboard")}>
                     {config.tombol_kembali || defaultConfig.tombol_kembali}
                   </button>
                 </div>
-              </div>
+              </aside>
 
-              <div className="grid grid-cols-1 xl:grid-cols-12 gap-4 md:gap-6">
-                <div className="xl:col-span-5 space-y-4 md:space-y-6">
-                  <div className="glass-card rounded-3xl p-4 md:p-7 premium-shadow">
-                    <h2 className="font-bold mb-4 md:mb-6 flex items-center gap-2 md:gap-3" style={{ fontSize: `${baseSize * 1.25}px`, color: textColor }}>
-                      <span className="w-10 h-10 md:w-12 md:h-12 rounded-xl flex items-center justify-center" style={{ background: `linear-gradient(135deg, ${secondaryColor}, #059669)` }}>
-                        {"\u{2795}"}
-                      </span>
-                      <span>Tambah Siswa Baru</span>
-                    </h2>
-                    <form className="space-y-3 md:space-y-4" onSubmit={handleAddSiswa}>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
-                        <input
-                          type="text"
-                          required
-                          value={formNama}
-                          onChange={(e) => setFormNama(e.target.value)}
-                          placeholder="Nama siswa..."
-                          className="px-4 py-3 md:px-6 md:py-5 rounded-2xl focus:outline-none transition-all"
-                          style={{
-                            background: "rgba(255, 255, 255, 0.05)",
-                            color: textColor,
-                            fontSize: `${baseSize * 0.9}px`,
-                            border: "2px solid rgba(255, 255, 255, 0.1)",
-                            fontWeight: 500,
-                          }}
-                        />
-                        <input
-                          type="text"
-                          required
-                          value={formKelas}
-                          onChange={(e) => setFormKelas(e.target.value)}
-                          placeholder="Kelas (misal: 7A, 8B, 9C)..."
-                          className="px-4 py-3 md:px-6 md:py-5 rounded-2xl focus:outline-none transition-all"
-                          style={{
-                            background: "rgba(255, 255, 255, 0.05)",
-                            color: textColor,
-                            fontSize: `${baseSize * 0.9}px`,
-                            border: "2px solid rgba(255, 255, 255, 0.1)",
-                            fontWeight: 500,
-                          }}
-                        />
-                      </div>
-                      <button
-                        type="submit"
-                        className="luxury-button w-full px-6 py-3 md:px-10 md:py-5 rounded-2xl font-bold shadow-lg"
-                        style={{ background: `linear-gradient(135deg, ${secondaryColor}, #059669)`, color: "white", fontSize: `${baseSize * 0.95}px` }}
-                      >
-                        {config.tombol_simpan || defaultConfig.tombol_simpan}
-                      </button>
-                    </form>
+              <main className="admin-main">
+                <header className="topbar">
+                  <div className="topbar__left">
+                    <h1 className="page-title">Dashboard</h1>
+                    <p className="page-subtitle">Kelola siswa, absensi, pelanggaran, dan poin dalam satu tempat.</p>
                   </div>
 
-                  <div className="glass-card rounded-3xl p-4 md:p-7 premium-shadow">
-                    <h2 className="font-bold mb-4 md:mb-6 flex items-center gap-2 md:gap-3" style={{ fontSize: `${baseSize * 1.25}px`, color: textColor }}>
-                      <span className="w-10 h-10 md:w-12 md:h-12 rounded-xl flex items-center justify-center" style={{ background: "linear-gradient(135deg, #ef4444, #dc2626)" }}>
-                        {"\u{26A0}\u{FE0F}"}
-                      </span>
-                      <span>Kelola Daftar Pelanggaran</span>
-                    </h2>
-                    <form className="mb-4 md:mb-6" onSubmit={handleAddPelanggaran}>
-                      <div className="grid grid-cols-1 md:grid-cols-12 gap-3 md:gap-4">
-                        <div className="md:col-span-7">
-                          <label
-                            className="block mb-2 font-semibold"
-                            style={{ fontSize: `${baseSize * 0.8}px`, color: textColor, opacity: 0.7 }}
-                          >
-                            Nama pelanggaran
-                          </label>
-                          <input
-                            type="text"
-                            required
-                            value={formPelanggaranNama}
-                            onChange={(e) => setFormPelanggaranNama(e.target.value)}
-                            placeholder="Contoh: terlambat masuk kelas"
-                            className="w-full px-4 py-3 md:px-6 md:py-5 rounded-2xl focus:outline-none transition-all"
-                            style={{
-                              background: "rgba(255, 255, 255, 0.05)",
-                              color: textColor,
-                              fontSize: `${baseSize * 0.9}px`,
-                              border: "2px solid rgba(255, 255, 255, 0.1)",
-                              fontWeight: 500,
-                            }}
-                          />
-                        </div>
-                        <div className="md:col-span-5">
-                          <label
-                            className="block mb-2 font-semibold"
-                            style={{ fontSize: `${baseSize * 0.8}px`, color: textColor, opacity: 0.7 }}
-                          >
-                            Poin (negatif)
-                          </label>
-                          <div className="grid grid-cols-1 gap-2 items-stretch">
-                            <input
-                              type="number"
-                              required
-                              value={formPelanggaranPoin}
-                              onChange={(e) => setFormPelanggaranPoin(e.target.value)}
-                              placeholder="-10"
-                              max={0}
-                              className="flex-1 px-4 py-3 md:px-6 md:py-5 rounded-2xl focus:outline-none transition-all"
-                              style={{
-                                background: "rgba(255, 255, 255, 0.05)",
-                                color: textColor,
-                                fontSize: `${baseSize * 0.9}px`,
-                                border: "2px solid rgba(255, 255, 255, 0.1)",
-                                fontWeight: 500,
-                              }}
-                            />
-                          </div>
-                          <div style={{ marginTop: 8, fontSize: `${baseSize * 0.75}px`, color: textColor, opacity: 0.6 }}>
-                            Contoh: -5, -10, -20
-                          </div>
-                        </div>
+                  <div className="topbar__right">
+                    <div className="search">
+                      <span className="search__icon">🔎</span>
+                      <input className="search__input" placeholder="Cari siswa / kelas..." />
+                    </div>
+                    <button
+                      className="btn btn--primary"
+                      type="button"
+                      onClick={() => addSiswaRef.current?.focus()}
+                    >
+                      + Tambah
+                    </button>
+                  </div>
+                </header>
+
+                <section className="admin-grid">
+                  <article className="card">
+                    <div className="card__head">
+                      <div>
+                        <h2 className="card__title">Tambah Siswa Baru</h2>
+                        <p className="card__desc">Input siswa ke data master dengan cepat.</p>
                       </div>
-                      <button
-                        type="submit"
-                        className="luxury-button w-full mt-3 px-6 py-3 md:px-8 md:py-4 rounded-2xl font-bold shadow-lg"
-                        style={{
-                          background: "linear-gradient(135deg, #ef4444, #dc2626)",
-                          color: "white",
-                          fontSize: `${baseSize * 0.9}px`,
-                        }}
-                      >
-                        {"\u{2795}"} Tambah Pelanggaran
-                      </button>
+                      <span className="badge badge--blue">Data Master</span>
+                    </div>
+
+                    <form className="form" onSubmit={handleAddSiswa}>
+                      <div className="field">
+                        <label className="label" htmlFor="nama">
+                          Nama Siswa
+                        </label>
+                        <input
+                          className="input"
+                          id="nama"
+                          name="nama"
+                          placeholder="Contoh: Budi Santoso"
+                          value={formNama}
+                          ref={addSiswaRef}
+                          onChange={(e) => setFormNama(e.target.value)}
+                          required
+                        />
+                      </div>
+
+                      <div className="field">
+                        <label className="label" htmlFor="kelas">
+                          Kelas
+                        </label>
+                        <input
+                          className="input"
+                          id="kelas"
+                          name="kelas"
+                          placeholder="Contoh: X A"
+                          value={formKelas}
+                          onChange={(e) => setFormKelas(e.target.value)}
+                          required
+                        />
+                      </div>
+
+                      <div className="actions">
+                        <button className="btn btn--primary" type="submit">
+                          {config.tombol_simpan || defaultConfig.tombol_simpan}
+                        </button>
+                        <button
+                          className="btn btn--ghost"
+                          type="reset"
+                          onClick={() => {
+                            setFormNama("");
+                            setFormKelas("");
+                          }}
+                        >
+                          Reset
+                        </button>
+                      </div>
+                    </form>
+                  </article>
+
+
+                  <article className="card">
+                    <div className="card__head">
+                      <div>
+                        <h2 className="card__title">Kelola Daftar Pelanggaran</h2>
+                        <p className="card__desc">Tambah dan atur jenis pelanggaran beserta poinnya.</p>
+                      </div>
+                      <span className="badge badge--red">Pelanggaran</span>
+                    </div>
+
+                    <form className="form" onSubmit={handleAddPelanggaran}>
+                      <div className="field">
+                        <label className="label" htmlFor="namaPelanggaran">
+                          Nama Pelanggaran
+                        </label>
+                        <input
+                          className="input"
+                          id="namaPelanggaran"
+                          placeholder="Contoh: Terlambat masuk kelas"
+                          value={formPelanggaranNama}
+                          onChange={(e) => setFormPelanggaranNama(e.target.value)}
+                          required
+                        />
+                      </div>
+
+                      <div className="field">
+                        <label className="label" htmlFor="poinPelanggaran">
+                          Poin (negatif)
+                        </label>
+                        <input
+                          className="input"
+                          id="poinPelanggaran"
+                          type="number"
+                          placeholder="-10"
+                          value={formPelanggaranPoin}
+                          onChange={(e) => setFormPelanggaranPoin(e.target.value)}
+                          max={0}
+                          required
+                        />
+                      </div>
+
+                      <div className="actions">
+                        <button className="btn btn--danger" type="submit">
+                          + Tambah Pelanggaran
+                        </button>
+                      </div>
                     </form>
 
-                    <div className="space-y-2 md:space-y-3">
+                    <div className="divider" />
+
+                    <div className="list">
                       {pelanggaranData.length === 0 ? (
-                        <div
-                          className="text-center py-6 md:py-8"
-                          style={{ color: textColor, opacity: 0.5, fontSize: `${baseSize * 0.85}px` }}
-                        >
-                          Belum ada pelanggaran. Tambahkan pelanggaran pertama!
-                        </div>
+                        <div className="muted">Belum ada pelanggaran. Tambahkan pelanggaran pertama!</div>
                       ) : (
                         pelanggaranData.map((pelanggaran) => (
-                          <div
-                            key={pelanggaran.id}
-                            className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 p-4 md:p-5 rounded-xl"
-                            style={{
-                              background: "rgba(239, 68, 68, 0.1)",
-                              border: "1px solid rgba(239, 68, 68, 0.2)",
-                            }}
-                          >
-                            <div className="flex items-center gap-2 md:gap-3 flex-1 w-full sm:w-auto">
-                              <span
-                                className="font-black px-3 py-1.5 md:px-4 md:py-2 rounded-lg flex-shrink-0"
-                                style={{ background: "rgba(239, 68, 68, 0.2)", color: "#ef4444", fontSize: `${baseSize}px` }}
-                              >
-                                {pelanggaran.poin_pelanggaran}
-                              </span>
-                              <span
-                                className="flex-1"
-                                style={{ color: textColor, fontSize: `${baseSize * 0.9}px`, fontWeight: 500, wordBreak: "break-word" }}
-                              >
-                                {pelanggaran.nama_pelanggaran}
-                              </span>
+                          <div key={pelanggaran.id} className="list__row">
+                            <div>
+                              <div className="list__title">{pelanggaran.nama_pelanggaran}</div>
+                              <div className="list__meta">Kode: {pelanggaran.id}</div>
                             </div>
-                            <button
-                              className="btn-delete-pelanggaran luxury-button px-4 py-2 md:px-5 md:py-3 rounded-xl font-bold w-full sm:w-auto"
-                              style={{
-                                background: "linear-gradient(135deg, #dc2626, #991b1b)",
-                                color: "white",
-                                fontSize: `${baseSize * 0.85}px`,
-                                minWidth: 64,
-                              }}
-                              onClick={() => {
-                                if (confirmDeletePelanggaranIds[pelanggaran.id]) {
-                                  handleDeletePelanggaran(pelanggaran);
-                                  setConfirmDeletePelanggaranIds((prev) => ({ ...prev, [pelanggaran.id]: false }));
-                                } else {
-                                  setConfirmDeletePelanggaranIds((prev) => ({ ...prev, [pelanggaran.id]: true }));
-                                  setTimeout(() => {
+                            <div className="right">
+                              <span className="chip chip--red">{pelanggaran.poin_pelanggaran}</span>
+                              <button
+                                className="icon-btn"
+                                title="Hapus"
+                                type="button"
+                                onClick={() => {
+                                  if (confirmDeletePelanggaranIds[pelanggaran.id]) {
+                                    handleDeletePelanggaran(pelanggaran);
                                     setConfirmDeletePelanggaranIds((prev) => ({ ...prev, [pelanggaran.id]: false }));
-                                  }, 3000);
-                                }
-                              }}
-                            >
-                              {confirmDeletePelanggaranIds[pelanggaran.id] ? "Yakin?" : "\u{1F5D1}\u{FE0F}"}
-                            </button>
+                                  } else {
+                                    setConfirmDeletePelanggaranIds((prev) => ({ ...prev, [pelanggaran.id]: true }));
+                                    setTimeout(() => {
+                                      setConfirmDeletePelanggaranIds((prev) => ({ ...prev, [pelanggaran.id]: false }));
+                                    }, 3000);
+                                  }
+                                }}
+                              >
+                                {confirmDeletePelanggaranIds[pelanggaran.id] ? "Yakin?" : "🗑️"}
+                              </button>
+                            </div>
                           </div>
                         ))
                       )}
                     </div>
-                  </div>
-                </div>
+                  </article>
 
-                <div className="xl:col-span-7 space-y-4 md:space-y-6">
-                  <div className="glass-card rounded-3xl p-4 md:p-7 premium-shadow">
-                    <h2 className="font-bold mb-4 md:mb-6 flex items-center gap-2 md:gap-3" style={{ fontSize: `${baseSize * 1.25}px`, color: textColor }}>
-                      <span className="w-10 h-10 md:w-12 md:h-12 rounded-xl flex items-center justify-center" style={{ background: `linear-gradient(135deg, ${primaryColor}, #2563eb)` }}>
-                        {"\u{1F4F7}"}
-                      </span>
-                      <span>Scan Barcode/QR Absensi</span>
-                    </h2>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 md:gap-4 mb-4">
-                      <button
-                        className="luxury-button px-6 py-3 md:px-8 md:py-5 rounded-2xl font-bold shadow-lg"
-                        style={{ background: `linear-gradient(135deg, ${primaryColor}, #2563eb)`, color: "white", fontSize: `${baseSize * 0.95}px` }}
-                        onClick={() => setScanModalOpen(true)}
-                      >
-                        {"\u{1F4F7} Buka Scanner"}
-                      </button>
-                      <button
-                        className="luxury-button px-6 py-3 md:px-8 md:py-5 rounded-2xl font-bold shadow-lg"
-                        style={{
-                          background: "rgba(255, 255, 255, 0.05)",
-                          color: textColor,
-                          fontSize: `${baseSize * 0.95}px`,
-                          border: "2px solid rgba(255, 255, 255, 0.1)",
-                        }}
-                        onClick={() => setManualInputOpen((prev) => !prev)}
-                      >
-                        {"\u{2328}\u{FE0F} Input Manual"}
-                      </button>
+                  <article className="card">
+                    <div className="card__head">
+                      <div>
+                        <h2 className="card__title">Tambah Poin Custom</h2>
+                        <p className="card__desc">Tambahkan poin ke siswa tertentu (reward/penalty).</p>
+                      </div>
+                      <span className="badge badge--amber">Poin</span>
                     </div>
 
-                    {manualInputOpen ? (
-                      <div style={{ marginTop: 12 }}>
-                        <form
-                          className="flex flex-col sm:flex-row gap-3 md:gap-4"
-                          onSubmit={(e) => {
-                            e.preventDefault();
-                            const barcodeId = manualBarcode.trim();
-                            if (barcodeId) {
-                              processAbsensi(barcodeId);
-                              setManualBarcode("");
-                            }
+                    <form className="form" onSubmit={handleAddPoinCustom}>
+                      <div className="field">
+                        <label className="label" htmlFor="cariSiswa">
+                          Cari Siswa
+                        </label>
+                        <input
+                          className="input"
+                          id="cariSiswa"
+                          placeholder="Nama / NIS / Kelas..."
+                          type="text"
+                          list="siswa-options"
+                          value={formPoinSiswaQuery}
+                          onChange={(e) => {
+                            const value = e.target.value;
+                            setFormPoinSiswaQuery(value);
+                            const match = siswaData.find(
+                              (item) => `${item.nama} (${item.kelas})` === value,
+                            );
+                            setFormPoinSiswaId(match?.id ?? "");
                           }}
-                        >
-                          <input
-                            type="text"
-                            value={manualBarcode}
-                            onChange={(e) => setManualBarcode(e.target.value)}
-                            placeholder="Masukkan kode barcode/QR..."
-                            className="flex-1 px-4 py-3 md:px-6 md:py-5 rounded-2xl focus:outline-none transition-all"
-                            style={{
-                              background: "rgba(255, 255, 255, 0.05)",
-                              color: textColor,
-                              fontSize: `${baseSize * 0.9}px`,
-                              border: "2px solid rgba(255, 255, 255, 0.1)",
-                              fontWeight: 500,
-                            }}
-                          />
-                          <button
-                            type="submit"
-                            className="luxury-button px-6 py-3 md:px-10 md:py-5 rounded-2xl font-bold shadow-lg"
-                            style={{ background: `linear-gradient(135deg, ${secondaryColor}, #059669)`, color: "white", fontSize: `${baseSize * 0.95}px` }}
-                          >
-                            Absen
-                          </button>
-                        </form>
+                        />
+                        <datalist id="siswa-options">
+                          {siswaData.map((siswa) => (
+                            <option key={siswa.id} value={`${siswa.nama} (${siswa.kelas})`} />
+                          ))}
+                        </datalist>
                       </div>
-                    ) : null}
-                  </div>
 
-                  <div className="glass-card rounded-3xl p-4 md:p-7 premium-shadow">
-                    <h2 className="font-bold mb-4 md:mb-6 flex items-center gap-2 md:gap-3" style={{ fontSize: `${baseSize * 1.25}px`, color: textColor }}>
-                      <span className="w-10 h-10 md:w-12 md:h-12 rounded-xl flex items-center justify-center" style={{ background: `linear-gradient(135deg, ${secondaryColor}, #059669)` }}>
-                        {"\u{2B50}"}
-                      </span>
-                      <span>Tambah Poin Custom</span>
-                    </h2>
-                    <form className="space-y-3 md:space-y-4" onSubmit={handleAddPoinCustom}>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
-                        <div>
-                          <label
-                            className="block mb-2 font-semibold"
-                            style={{ fontSize: `${baseSize * 0.8}px`, color: textColor, opacity: 0.7 }}
-                          >
-                            Pilih siswa
-                          </label>
-                          <input
-                            type="text"
-                            list="siswa-options"
-                            value={formPoinSiswaQuery}
-                            onChange={(e) => {
-                              const value = e.target.value;
-                              setFormPoinSiswaQuery(value);
-                              const match = siswaData.find(
-                                (item) => `${item.nama} (${item.kelas})` === value,
-                              );
-                              setFormPoinSiswaId(match?.id ?? "");
-                            }}
-                            placeholder="Cari siswa..."
-                            className="w-full px-4 py-3 md:px-6 md:py-5 rounded-2xl focus:outline-none transition-all"
-                            style={{
-                              background: "rgba(255, 255, 255, 0.05)",
-                              color: textColor,
-                              fontSize: `${baseSize * 0.9}px`,
-                              border: "2px solid rgba(255, 255, 255, 0.1)",
-                              fontWeight: 500,
-                            }}
-                          />
-                          <datalist id="siswa-options">
-                            {siswaData.map((siswa) => (
-                              <option key={siswa.id} value={`${siswa.nama} (${siswa.kelas})`} />
-                            ))}
-                          </datalist>
-                        </div>
-                        <div>
-                          <label
-                            className="block mb-2 font-semibold"
-                            style={{ fontSize: `${baseSize * 0.8}px`, color: textColor, opacity: 0.7 }}
-                          >
-                            Jumlah poin
-                          </label>
-                          <input
-                            type="number"
-                            min={1}
-                            value={formPoinJumlah}
-                            onChange={(e) => setFormPoinJumlah(e.target.value)}
-                            placeholder="Contoh: 5"
-                            className="w-full px-4 py-3 md:px-6 md:py-5 rounded-2xl focus:outline-none transition-all"
-                            style={{
-                              background: "rgba(255, 255, 255, 0.05)",
-                              color: textColor,
-                              fontSize: `${baseSize * 0.9}px`,
-                              border: "2px solid rgba(255, 255, 255, 0.1)",
-                              fontWeight: 500,
-                            }}
-                          />
-                          <div style={{ marginTop: 8, fontSize: `${baseSize * 0.75}px`, color: textColor, opacity: 0.6 }}>
-                            Contoh: 5, 10, 20
-                          </div>
-                        </div>
+                      <div className="field">
+                        <label className="label" htmlFor="jumlahPoin">
+                          Jumlah Poin
+                        </label>
+                        <input
+                          className="input"
+                          id="jumlahPoin"
+                          type="number"
+                          placeholder="Contoh: 5 atau -10"
+                          value={formPoinJumlah}
+                          onChange={(e) => setFormPoinJumlah(e.target.value)}
+                          min={1}
+                        />
                       </div>
-                      <button
-                        type="submit"
-                        className="luxury-button w-full px-6 py-3 md:px-10 md:py-5 rounded-2xl font-bold shadow-lg"
-                        style={{ background: `linear-gradient(135deg, ${secondaryColor}, #059669)`, color: "white", fontSize: `${baseSize * 0.95}px` }}
-                      >
-                        {"\u{2795}"} Tambah Poin
-                      </button>
+
+                      <div className="field">
+                        <label className="label" htmlFor="catatanPoin">
+                          Catatan
+                        </label>
+                        <input className="input" id="catatanPoin" placeholder="Contoh: Membantu kebersihan kelas" />
+                      </div>
+
+                      <div className="actions">
+                        <button className="btn btn--primary" type="submit">
+                          + Tambah Poin
+                        </button>
+                      </div>
                     </form>
-                  </div>
+                  </article>
 
-                  <div className="space-y-3 md:space-y-5">
-                    <div className="flex items-center justify-between mb-2 md:mb-4">
-                      <h2 className="font-bold flex items-center gap-2 md:gap-3" style={{ fontSize: `${baseSize * 1.25}px`, color: textColor }}>
-                        <span className="w-10 h-10 md:w-12 md:h-12 rounded-xl flex items-center justify-center" style={{ background: `linear-gradient(135deg, ${primaryColor}, #2563eb)` }}>
-                          {"\u{1F465}"}
-                        </span>
-                        <span>Kelola Siswa ({siswaData.length})</span>
-                      </h2>
-                    </div>
-                    {siswaData.length === 0 ? (
-                      <div className="glass-card rounded-3xl text-center py-20 md:py-28 premium-shadow">
-                        <div style={{ fontSize: `${baseSize * 5}px`, marginBottom: 24, opacity: 0.3 }}>{"\u{1F4ED}"}</div>
-                        <p style={{ fontSize: `${baseSize * 1.1}px`, color: textColor, opacity: 0.5, fontWeight: 600 }}>
-                          Belum ada siswa
-                        </p>
-                      </div>
-                    ) : (
-                      <div className="space-y-8">
-                        {siswaByKelas.map(([kelas, siswaList]) => (
-                          <div key={kelas} className="space-y-4 md:space-y-5">
-                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                              <div
-                                className="px-4 py-2 rounded-2xl font-bold"
-                                style={{
-                                  background: "linear-gradient(135deg, rgba(37, 99, 235, 0.18), rgba(14, 165, 233, 0.18))",
-                                  color: textColor,
-                                  border: "1px solid rgba(59, 130, 246, 0.3)",
-                                  fontSize: `${baseSize}px`,
-                                }}
-                              >
-                                Kelas {kelas}
-                              </div>
-                              <div
-                                className="px-4 py-2 rounded-2xl font-semibold"
-                                style={{
-                                  background: "rgba(255, 255, 255, 0.05)",
-                                  color: textColor,
-                                  border: "1px solid rgba(255, 255, 255, 0.1)",
-                                  fontSize: `${baseSize * 0.85}px`,
-                                }}
-                              >
-                                {siswaList.length} siswa
-                              </div>
-                            </div>
-                            {siswaList.map((siswa) => {
-                    const sudahAbsen = isClientReady && siswa.absen_hari_ini === todayDate;
-                    const statusKnown = isClientReady;
-                    const statusLabel = !statusKnown
-                      ? "Memuat..."
-                      : sudahAbsen
-                        ? "Hadir Hari Ini"
-                        : "Belum Absen";
-                    const statusStyle = !statusKnown
-                      ? {
-                          background: "rgba(148, 163, 184, 0.2)",
-                          border: "1px solid rgba(148, 163, 184, 0.4)",
-                        }
-                      : sudahAbsen
-                        ? {
-                            background: "rgba(16, 185, 129, 0.2)",
-                            border: "1px solid rgba(16, 185, 129, 0.4)",
-                          }
-                        : {
-                            background: "rgba(239, 68, 68, 0.2)",
-                            border: "1px solid rgba(239, 68, 68, 0.4)",
-                          };
-                    const btnPlusDisabled = !sudahAbsen;
-                    return (
-                      <div key={siswa.id} className="glass-card rounded-3xl p-4 md:p-8 premium-shadow">
-                        <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between mb-4 md:mb-6 gap-4">
-                          <div className="flex-1 w-full">
-                            <div className="flex flex-col sm:flex-row sm:items-center gap-3 md:gap-4 mb-3">
-                              <input
-                                className="font-bold"
-                                value={editingNama[siswa.id] ?? siswa.nama}
-                                onChange={(e) =>
-                                  setEditingNama((prev) => ({
-                                    ...prev,
-                                    [siswa.id]: e.target.value,
-                                  }))
-                                }
-                                onBlur={() => handleEditNama(siswa)}
-                                onKeyDown={(e) => {
-                                  if (e.key === "Enter") {
-                                    e.preventDefault();
-                                    (e.currentTarget as HTMLInputElement).blur();
-                                  }
-                                }}
-                                style={{
-                                  fontSize: `${baseSize * 1.2}px`,
-                                  color: textColor,
-                                  cursor: "text",
-                                  outline: "none",
-                                  padding: "8px 12px",
-                                  borderRadius: 12,
-                                  transition: "all 0.3s",
-                                  background: "rgba(255, 255, 255, 0.02)",
-                                  width: "100%",
-                                }}
-                              />
-                              <div className="px-3 py-1.5 md:px-4 md:py-2 rounded-xl inline-block" style={statusStyle}>
-                                <span
-                                  style={{
-                                    fontSize: `${baseSize * 0.8}px`,
-                                    color: statusKnown ? (sudahAbsen ? "#10b981" : "#ef4444") : "#94a3b8",
-                                    fontWeight: 700,
-                                  }}
-                                  suppressHydrationWarning
-                                >
-                                  {statusLabel}
-                                </span>
-                              </div>
-                            </div>
-                            <div className="flex flex-wrap items-center gap-2 md:gap-4">
-                              <div className="px-3 py-1.5 md:px-5 md:py-2 rounded-xl" style={{ background: "linear-gradient(135deg, rgba(59, 130, 246, 0.15), rgba(37, 99, 235, 0.15))", border: "1px solid rgba(59, 130, 246, 0.3)" }}>
-                                <span style={{ fontSize: `${baseSize * 0.85}px`, color: primaryColor, fontWeight: 700 }}>
-                                  {"\u{2B50}"} {siswa.poin} poin
-                                </span>
-                              </div>
-                              <div className="px-3 py-1.5 md:px-5 md:py-2 rounded-xl" style={{ background: "linear-gradient(135deg, rgba(16, 185, 129, 0.15), rgba(5, 150, 105, 0.15))", border: "1px solid rgba(16, 185, 129, 0.3)" }}>
-                                <span style={{ fontSize: `${baseSize * 0.85}px`, color: secondaryColor, fontWeight: 700 }}>
-                                  {"\u{2705}"} {siswa.kehadiran} hadir
-                                </span>
-                              </div>
-                            </div>
-                          </div>
-                          <div className="grid grid-cols-3 sm:flex gap-2 md:gap-3 w-full lg:w-auto">
-                            <button
-                              className="btn-show-barcode luxury-button px-3 py-2 md:px-6 md:py-3 rounded-xl font-bold shadow-md"
-                              style={{ background: "linear-gradient(135deg, #8b5cf6, #7c3aed)", color: "white", fontSize: `${baseSize * 0.9}px` }}
-                              onClick={() => {
-                                setBarcodeTarget(siswa);
-                                setBarcodeModalOpen(true);
-                              }}
-                            >
-                              {"\u{1F39F}\u{FE0F}"}
-                            </button>
-                            <button
-                              className="btn-minus luxury-button px-3 py-2 md:px-6 md:py-3 rounded-xl font-bold shadow-md"
-                              style={{ background: "linear-gradient(135deg, #f59e0b, #d97706)", color: "white", fontSize: `${baseSize * 0.9}px` }}
-                              onClick={() => handleMinusPoin(siswa)}
-                            >
-                              -10
-                            </button>
-                            <button
-                              className={`btn-plus luxury-button px-3 py-2 md:px-6 md:py-3 rounded-xl font-bold shadow-md ${btnPlusDisabled ? "opacity-50" : ""}`}
-                              style={{
-                                background: `linear-gradient(135deg, ${secondaryColor}, #059669)`,
-                                color: "white",
-                                fontSize: `${baseSize * 0.9}px`,
-                                cursor: btnPlusDisabled ? "not-allowed" : "pointer",
-                              }}
-                              disabled={btnPlusDisabled}
-                              onClick={() => handlePlusPoin(siswa)}
-                            >
-                              +10
-                            </button>
-                            <button
-                              className="btn-violation luxury-button px-3 py-2 md:px-6 md:py-3 rounded-xl font-bold shadow-md"
-                              style={{ background: "linear-gradient(135deg, #ef4444, #dc2626)", color: "white", fontSize: `${baseSize * 0.9}px` }}
-                              onClick={() => {
-                                setConfirmDeleteIds((prev) => ({ ...prev, [`panel-${siswa.id}`]: !prev[`panel-${siswa.id}`] }));
-                              }}
-                            >
-                              {"\u{26A0}\u{FE0F}"}
-                            </button>
-                            <button
-                              className="btn-delete luxury-button px-3 py-2 md:px-6 md:py-3 rounded-xl font-bold shadow-md"
-                              style={{ background: "linear-gradient(135deg, #dc2626, #991b1b)", color: "white", fontSize: `${baseSize * 0.9}px` }}
-                              onClick={() => {
-                                if (confirmDeleteIds[siswa.id]) {
-                                  handleDeleteSiswa(siswa);
-                                  setConfirmDeleteIds((prev) => ({ ...prev, [siswa.id]: false }));
-                                } else {
-                                  setConfirmDeleteIds((prev) => ({ ...prev, [siswa.id]: true }));
-                                  setTimeout(() => {
-                                    setConfirmDeleteIds((prev) => ({ ...prev, [siswa.id]: false }));
-                                  }, 3000);
-                                }
-                              }}
-                            >
-                              {confirmDeleteIds[siswa.id] ? "Yakin?" : "\u{1F5D1}\u{FE0F}"}
-                            </button>
-                          </div>
-                        </div>
-
-                        {confirmDeleteIds[`panel-${siswa.id}`] ? (
-                          <div className="violation-panel" style={{ marginTop: 16, paddingTop: 16, borderTop: "2px solid rgba(255, 255, 255, 0.05)" }}>
-                            <h3 className="font-bold mb-4 md:mb-5 flex items-center gap-2" style={{ fontSize: `${baseSize}px`, color: textColor }}>
-                              <span>{"\u{26A0}\u{FE0F}"} Pilih Jenis Pelanggaran:</span>
-                            </h3>
-                            {pelanggaranData.length === 0 ? (
-                              <div className="text-center py-6 md:py-8" style={{ color: textColor, opacity: 0.5, fontSize: `${baseSize * 0.9}px` }}>
-                                Belum ada pelanggaran. Tambahkan pelanggaran di menu Kelola Pelanggaran terlebih dahulu.
-                              </div>
-                            ) : (
-                              <div className="grid grid-cols-1 md:grid-cols-2 gap-2 md:gap-3 mb-4">
-                                {pelanggaranData.map((pelanggaran) => (
-                                  <button
-                                    key={pelanggaran.id}
-                                    className="violation-item luxury-button px-4 py-3 md:px-5 md:py-4 rounded-xl text-left transition-all"
-                                    style={{
-                                      background: "rgba(239, 68, 68, 0.1)",
-                                      color: textColor,
-                                      fontSize: `${baseSize * 0.85}px`,
-                                      border: "1px solid rgba(239, 68, 68, 0.2)",
-                                    }}
-                                    onClick={() => {
-                                      handlePelanggaran(siswa, pelanggaran.poin_pelanggaran, pelanggaran.nama_pelanggaran);
-                                      setConfirmDeleteIds((prev) => ({ ...prev, [`panel-${siswa.id}`]: false }));
-                                    }}
-                                  >
-                                    <span className="font-black" style={{ color: "#ef4444", fontSize: `${baseSize}px` }}>
-                                      {pelanggaran.poin_pelanggaran}
-                                    </span>
-                                    <span style={{ opacity: 0.8 }}> - {pelanggaran.nama_pelanggaran}</span>
-                                  </button>
-                                ))}
-                              </div>
-                            )}
-                            <button
-                              className="btn-close-violation luxury-button px-4 py-2 md:px-6 md:py-3 rounded-xl font-semibold"
-                              style={{
-                                background: "rgba(255, 255, 255, 0.05)",
-                                color: textColor,
-                                fontSize: `${baseSize * 0.85}px`,
-                                border: "1px solid rgba(255, 255, 255, 0.1)",
-                              }}
-                              onClick={() => setConfirmDeleteIds((prev) => ({ ...prev, [`panel-${siswa.id}`]: false }))}
-                            >
-                              Tutup Panel
-                            </button>
-                          </div>
-                        ) : null}
-                      </div>
-                    );
-                            })}
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-            </>
+                  
+                </section>
+              </main>
+            </div>
           )}
         </div>
       </div>
@@ -1860,6 +1511,8 @@ export default function Home() {
     </div>
   );
 }
+
+
 
 
 
