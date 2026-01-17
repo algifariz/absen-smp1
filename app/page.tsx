@@ -69,6 +69,7 @@ export default function Home() {
   const [notif, setNotif] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const notifTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [todayDate] = useState<string>(getTodayDate());

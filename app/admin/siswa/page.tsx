@@ -1,7 +1,6 @@
-"use client";
+﻿"use client";
 
-import Link from "next/link";
-import { Fragment, useCallback, useEffect, useMemo, useState, useRef } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
 
 type SiswaRecord = {
@@ -275,8 +274,8 @@ export default function KelolaSiswaPage() {
   };
 
   return (
-    <div className="fade-in">
-      <div className="absensi-shell">
+    <>
+      <div className="absensi-shell fade-in">
         <div className="glass-card rounded-2xl p-4 md:p-6 mb-4 md:mb-6 premium-shadow absensi-hero">
           <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
             <div>
@@ -571,26 +570,26 @@ export default function KelolaSiswaPage() {
                 </div>
               </article>
       </div>
-
-      {notif ? (
-        <div
-          style={{
-            position: "fixed",
-            top: 24,
-            right: 24,
-            backgroundColor: "#2563eb",
-            color: "white",
-            padding: "16px 28px",
-            borderRadius: 12,
-            fontWeight: 600,
-            boxShadow: "0 8px 16px rgba(0,0,0,0.3)",
-            zIndex: 9999,
-            animation: "fadeIn 0.3s ease",
-          }}
-        >
-          {notif}
-        </div>
-      ) : null}
-    </div>
+        {notif ? (
+          <div
+            style={{
+              position: "fixed",
+              top: 24,
+              right: 24,
+              backgroundColor: "#2563eb",
+              color: "white",
+              padding: "16px 28px",
+              borderRadius: 12,
+              fontWeight: 600,
+              boxShadow: "0 8px 16px rgba(0,0,0,0.3)",
+              zIndex: 9999,
+              animation: "fadeIn 0.3s ease",
+            }}
+          >
+            {notif}
+          </div>
+        ) : null}
+    </>
   );
 }
+

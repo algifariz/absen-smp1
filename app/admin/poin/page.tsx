@@ -1,6 +1,5 @@
-"use client";
+﻿"use client";
 
-import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
 
@@ -129,8 +128,8 @@ export default function PoinPage() {
   };
 
   return (
-    <div className="fade-in">
-      <div className="absensi-shell">
+    <>
+      <div className="absensi-shell fade-in">
         <div className="glass-card rounded-2xl p-4 md:p-6 mb-4 md:mb-6 premium-shadow absensi-hero">
           <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
             <div>
@@ -222,7 +221,6 @@ export default function PoinPage() {
           </form>
         </article>
       </div>
-
       {notif ? (
         <div
           style={{
@@ -242,6 +240,7 @@ export default function PoinPage() {
           {notif}
         </div>
       ) : null}
-    </div>
+    </>
   );
 }
+

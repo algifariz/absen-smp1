@@ -1,6 +1,5 @@
-"use client";
+﻿"use client";
 
-import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Html5Qrcode } from "html5-qrcode";
 import { supabase } from "@/lib/supabaseClient";
@@ -208,9 +207,7 @@ export default function AbsensiPage() {
     const startScan = async () => {
       try {
         const devices = await Html5Qrcode.getCameras();
-        const preferredDevice = devices.find((device) =>
-          /back|rear|environment/i.test(device.label),
-        );
+        const preferredDevice = devices.find((device) => /back|rear|environment/i.test(device.label));
         const deviceId = preferredDevice?.id || devices[0]?.id;
         if (!deviceId) {
           throw new Error("NoCameraFound");
@@ -293,8 +290,8 @@ export default function AbsensiPage() {
   }, [scanStatus]);
 
   return (
-    <div className="fade-in">
-      <div className="absensi-shell">
+    <>
+      <div className="absensi-shell fade-in">
         <div className="glass-card rounded-2xl p-4 md:p-6 mb-4 md:mb-6 premium-shadow absensi-hero">
           <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
             <div>
@@ -313,7 +310,7 @@ export default function AbsensiPage() {
             <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
               <div>
                 <p className="font-semibold" style={{ color: "#0f172a" }}>
-                   {loadError}
+                  {loadError}
                 </p>
                 <p style={{ color: "#64748b", fontSize: "0.85rem" }}>
                   Coba muat ulang setelah memastikan env Supabase benar.
@@ -387,7 +384,7 @@ export default function AbsensiPage() {
         <div className="modal-overlay">
           <div className="glass-card rounded-3xl p-6 md:p-8 max-w-xl w-full mx-4 premium-shadow">
             <h2 className="font-bold mb-4 text-center" style={{ fontSize: "1.8rem", color: "#0f172a" }}>
-               Scan Barcode/QR Siswa
+              Scan Barcode/QR Siswa
             </h2>
             <p className="text-center mb-4" style={{ fontSize: "1rem", color: "#0f172a", opacity: 0.7 }}>
               Pastikan izin kamera aktif dan gunakan koneksi `https` atau `localhost`.
@@ -487,6 +484,6 @@ export default function AbsensiPage() {
           {notif}
         </div>
       ) : null}
-    </div>
+    </>
   );
 }

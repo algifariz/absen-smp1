@@ -38,6 +38,8 @@ body {
   grid-template-columns: minmax(220px, 280px) 1fr;
   gap: 24px;
   padding: 22px;
+  width: 100%;
+  min-height: calc(100vh - 24px);
   border-radius: 26px;
   background: radial-gradient(circle at 12% 8%, rgba(250, 204, 21, 0.2), transparent 42%),
     radial-gradient(circle at 88% 0%, rgba(14, 165, 233, 0.18), transparent 38%),
@@ -55,9 +57,9 @@ body {
 }
 
 .absensi-shell {
-  max-width: 980px;
+  max-width: 1100px;
   margin: 0 auto;
-  padding: 20px 24px 32px;
+  padding: 16px 20px 32px;
 }
 
 .absensi-hero {
@@ -162,6 +164,36 @@ body {
 .admin-main {
   display: grid;
   gap: 20px;
+  padding: 4px 4px 20px;
+}
+
+.mobile-topbar {
+  display: none;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 16px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.9);
+  border: 1px solid rgba(148, 163, 184, 0.25);
+}
+
+.mobile-topbar__title {
+  font-weight: 800;
+  color: #0f172a;
+}
+
+.mobile-topbar__btn {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  border: 1px solid rgba(148, 163, 184, 0.4);
+  background: #ffffff;
+  font-weight: 700;
+}
+
+.sidebar-overlay {
+  display: none;
 }
 
 .topbar {
@@ -639,10 +671,12 @@ body {
     padding: 0;
     border-radius: 0;
     box-shadow: none;
+    border: none;
   }
 
   .admin-main {
     order: 1;
+    padding: 0;
   }
 
   .admin-sidebar {
@@ -657,14 +691,46 @@ body {
   }
 
   .absensi-shell {
-    padding: 0;
+    max-width: 100%;
+    margin: 0;
+    padding: 12px 12px 24px;
   }
 
   .absensi-hero,
   .card {
-    border-radius: 0;
+    border-radius: 16px;
     margin: 0;
-    box-shadow: none;
+    box-shadow: var(--shadow-soft);
+  }
+
+  .mobile-topbar {
+    display: flex;
+    border-radius: 0;
+  }
+
+  .admin-sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: min(82vw, 320px);
+    height: 100vh;
+    overflow-y: auto;
+    z-index: 50;
+    transform: translateX(-110%);
+    transition: transform 0.25s ease;
+    border-radius: 0 16px 16px 0;
+  }
+
+  .admin-sidebar.is-open {
+    transform: translateX(0);
+  }
+
+  .sidebar-overlay {
+    display: block;
+    position: fixed;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.45);
+    z-index: 40;
   }
 
   .admin-sidebar .nav {
