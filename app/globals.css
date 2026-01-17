@@ -29,6 +29,23 @@ body {
   font-family: var(--font-inter), Arial, Helvetica, sans-serif;
 }
 
+.admin-app {
+  --admin-bg: #f8fafc;
+  --admin-card: #ffffff;
+  --admin-muted: #64748b;
+  --admin-border: rgba(148, 163, 184, 0.3);
+  display: grid;
+  grid-template-columns: minmax(220px, 280px) 1fr;
+  gap: 24px;
+  padding: 22px;
+  border-radius: 26px;
+  background: radial-gradient(circle at 12% 8%, rgba(250, 204, 21, 0.2), transparent 42%),
+    radial-gradient(circle at 88% 0%, rgba(14, 165, 233, 0.18), transparent 38%),
+    linear-gradient(160deg, #f8fafc, #e2f3ff);
+  border: 1px solid rgba(15, 23, 42, 0.1);
+  box-shadow: 0 28px 60px rgba(15, 23, 42, 0.12);
+}
+
 @media (min-width: 1024px) {
   .admin-app-layout {
     display: flex;
@@ -60,7 +77,7 @@ body {
   display: flex;
   flex-direction: column;
   gap: 24px;
-  height: 100%;
+  height: auto;
 }
 
 @media (min-width: 1024px) {
@@ -73,8 +90,8 @@ body {
 }
 
 .admin-sidebar .nav {
-  overflow: auto;
-  max-height: calc(100vh - 220px);
+  overflow: visible;
+  max-height: none;
 }
 
 .brand {
@@ -115,16 +132,16 @@ body {
   width: 100%;
   padding: 10px 12px;
   border-radius: 12px;
-  background: transparent;
-  border: 1px solid transparent;
+  background: rgba(15, 23, 42, 0.25);
+  border: 1px solid rgba(148, 163, 184, 0.18);
   color: inherit;
   font-weight: 600;
   text-align: left;
 }
 
 .nav__item--active {
-  background: rgba(59, 130, 246, 0.2);
-  border-color: rgba(59, 130, 246, 0.4);
+  background: rgba(59, 130, 246, 0.3);
+  border-color: rgba(59, 130, 246, 0.55);
 }
 
 .nav__icon {
@@ -133,7 +150,7 @@ body {
   border-radius: 8px;
   display: grid;
   place-items: center;
-  background: rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.12);
 }
 
 .sidebar__footer {
@@ -200,11 +217,11 @@ body {
 
 .card {
   grid-column: span 6;
-  background: var(--admin-card);
+  background: linear-gradient(180deg, #ffffff, #f8fafc);
   border-radius: 22px;
   padding: 18px;
   border: 1px solid var(--admin-border);
-  box-shadow: 0 14px 30px rgba(15, 23, 42, 0.08);
+  box-shadow: 0 16px 34px rgba(15, 23, 42, 0.12);
   display: grid;
   gap: 16px;
 }
@@ -223,11 +240,11 @@ body {
 .card__title {
   font-weight: 700;
   font-size: 1.1rem;
-  color: #111827;
+  color: #0f172a;
 }
 
 .card__desc {
-  color: var(--admin-muted);
+  color: #64748b;
   font-size: 0.85rem;
 }
 
@@ -256,8 +273,8 @@ body {
 }
 
 .badge--amber {
-  background: rgba(245, 158, 11, 0.18);
-  color: #b45309;
+  background: rgba(245, 158, 11, 0.22);
+  color: #92400e;
 }
 
 .form {
@@ -279,8 +296,8 @@ body {
 .input {
   padding: 10px 12px;
   border-radius: 12px;
-  border: 1px solid var(--admin-border);
-  background: #f9fafb;
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  background: #ffffff;
   font-weight: 600;
   color: #111827;
   outline: none;
@@ -316,9 +333,9 @@ body {
 }
 
 .btn--ghost {
-  background: transparent;
-  border-color: var(--admin-border);
-  color: #111827;
+  background: #ffffff;
+  border-color: rgba(148, 163, 184, 0.4);
+  color: #0f172a;
 }
 
 .btn--danger {
@@ -355,7 +372,7 @@ body {
   align-items: center;
   padding: 12px 14px;
   border-radius: 14px;
-  background: #f8fafc;
+  background: #ffffff;
   border: 1px solid var(--admin-border);
 }
 
@@ -444,9 +461,9 @@ body {
 }
 
 .table th {
-  color: #111827;
+  color: #0f172a;
   font-weight: 700;
-  background: rgba(148, 163, 184, 0.12);
+  background: rgba(148, 163, 184, 0.18);
 }
 
 .th-right,
@@ -468,7 +485,7 @@ body {
   border: none;
   background: transparent;
   font-weight: 700;
-  color: #111827;
+  color: #0f172a;
   outline: none;
 }
 
@@ -557,22 +574,69 @@ body {
 }
 
 @media (max-width: 1024px) {
+  .admin-app {
+    grid-template-columns: 1fr;
+    padding: 16px;
+  }
+
+  .admin-sidebar {
+    position: relative;
+    top: 0;
+    border-radius: 16px;
+    padding: 16px;
+  }
+
   .card {
     grid-column: span 12;
   }
 }
 
 @media (max-width: 768px) {
+  .admin-app {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    padding: 0;
+    border-radius: 0;
+    box-shadow: none;
+  }
+
+  .admin-main {
+    order: 1;
+  }
+
+  .admin-sidebar {
+    order: 2;
+    border-radius: 0;
+    padding: 12px;
+  }
+
   .admin-sidebar {
     gap: 16px;
+    height: auto;
+  }
+
+  .absensi-shell {
+    padding: 0;
+  }
+
+  .absensi-hero,
+  .card {
+    border-radius: 0;
+    margin: 0;
+    box-shadow: none;
   }
 
   .admin-sidebar .nav {
     display: grid;
-    grid-auto-flow: column;
-    grid-auto-columns: minmax(170px, 1fr);
-    overflow-x: auto;
-    padding-bottom: 6px;
+    grid-template-columns: 1fr;
+    gap: 8px;
+    overflow: visible;
+    padding-bottom: 0;
+  }
+
+  .nav__item {
+    width: 100%;
   }
 
   .nav__item {
