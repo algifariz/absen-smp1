@@ -29,22 +29,12 @@ body {
   font-family: var(--font-inter), Arial, Helvetica, sans-serif;
 }
 
-.admin-app {
-  --admin-bg: #f7f6f2;
-  --admin-card: #ffffff;
-  --admin-muted: #6b7280;
-  --admin-border: rgba(148, 163, 184, 0.25);
-  font-family: "Sora", "Segoe UI", sans-serif;
-  display: grid;
-  grid-template-columns: minmax(220px, 280px) 1fr;
-  gap: 24px;
-  padding: 22px;
-  border-radius: 26px;
-  background: radial-gradient(circle at 10% 10%, rgba(250, 204, 21, 0.15), transparent 40%),
-    radial-gradient(circle at 90% 0%, rgba(14, 165, 233, 0.12), transparent 35%),
-    linear-gradient(160deg, #f7f6f2, #eef2ff);
-  border: 1px solid rgba(15, 23, 42, 0.08);
-  box-shadow: 0 28px 60px rgba(15, 23, 42, 0.12);
+@media (min-width: 1024px) {
+  .admin-app-layout {
+    display: flex;
+    gap: 32px;
+    align-items: flex-start;
+  }
 }
 
 .absensi-shell {
@@ -70,9 +60,16 @@ body {
   display: flex;
   flex-direction: column;
   gap: 24px;
-  min-height: 100%;
-  position: sticky;
-  top: 24px;
+  height: 100%;
+}
+
+@media (min-width: 1024px) {
+  .admin-sidebar {
+    min-height: calc(100vh - 4rem);
+    position: sticky;
+    top: 2rem;
+    height: auto;
+  }
 }
 
 .admin-sidebar .nav {
@@ -560,18 +557,6 @@ body {
 }
 
 @media (max-width: 1024px) {
-  .admin-app {
-    grid-template-columns: 1fr;
-    padding: 16px;
-  }
-
-  .admin-sidebar {
-    position: relative;
-    top: 0;
-    border-radius: 16px;
-    padding: 16px;
-  }
-
   .card {
     grid-column: span 12;
   }

@@ -120,183 +120,124 @@ export default function PelanggaranPage() {
   };
 
   return (
-    <div className="min-h-full w-full">
-      <div className="gradient-bg min-h-full">
-        <div
-          className="admin-app fade-in"
-          style={{
-            ["--admin-primary"]: "#2563eb",
-            ["--admin-secondary"]: "#059669",
-            ["--admin-text"]: "#0f172a",
-          }}
-        >
-          <aside className="admin-sidebar">
-            <div className="brand">
-              <div className="brand__logo">📷</div>
-              <div className="brand__text">
-                <div className="brand__title">Panel Admin</div>
-                <div className="brand__sub">Absensi • Poin • Pelanggaran</div>
-              </div>
+    <div className="fade-in">
+      <div className="absensi-shell">
+        <div className="glass-card rounded-2xl p-4 md:p-6 mb-4 md:mb-6 premium-shadow absensi-hero">
+          <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+            <div>
+              <h1 className="font-black tracking-tight mb-2" style={{ fontSize: "2rem", color: "#0f172a" }}>
+                Kelola Daftar Pelanggaran
+              </h1>
+              <p style={{ fontSize: "0.9rem", color: "#64748b" }}>
+                Tambah dan atur jenis pelanggaran beserta poinnya.
+              </p>
             </div>
-
-            <nav className="nav">
-              <Link className="nav__item" href="/">
-                <span className="nav__icon">📦</span>
-                <span>Data Master</span>
-              </Link>
-              <Link className="nav__item" href="/admin/absensi">
-                <span className="nav__icon">🧾</span>
-                <span>Operational Absensi</span>
-              </Link>
-              <Link className="nav__item" href="/admin/siswa">
-                <span className="nav__icon">👥</span>
-                <span>Kelola Siswa</span>
-              </Link>
-              <Link className="nav__item nav__item--active" href="/admin/pelanggaran">
-                <span className="nav__icon">⚠️</span>
-                <span>Pelanggaran</span>
-              </Link>
-              <Link className="nav__item" href="/admin/poin">
-                <span className="nav__icon">⭐</span>
-                <span>Poin</span>
-              </Link>
-            </nav>
-
-            <div className="sidebar__footer">
-              <div className="pill">
-                <span className="dot dot--ok" />
-                <span>Online</span>
-              </div>
-              <Link className="btn btn--ghost w-full" href="/">
-                Kembali ke Admin
-              </Link>
-            </div>
-          </aside>
-
-          <main className="admin-main">
-            <div className="absensi-shell">
-              <div className="glass-card rounded-2xl p-4 md:p-6 mb-4 md:mb-6 premium-shadow absensi-hero">
-                <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-                  <div>
-                    <h1 className="font-black tracking-tight mb-2" style={{ fontSize: "2rem", color: "#0f172a" }}>
-                      Kelola Daftar Pelanggaran
-                    </h1>
-                    <p style={{ fontSize: "0.9rem", color: "#64748b" }}>
-                      Tambah dan atur jenis pelanggaran beserta poinnya.
-                    </p>
-                  </div>
-                  <Link className="btn btn--ghost" href="/">
-                    Kembali ke Admin
-                  </Link>
-                </div>
-              </div>
-
-              {loadError ? (
-                <div className="glass-card rounded-2xl p-4 md:p-6 mb-4 md:mb-6 premium-shadow">
-                  <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-                    <div>
-                      <p className="font-semibold" style={{ color: "#0f172a" }}>
-                        Perhatian: {loadError}
-                      </p>
-                      <p style={{ color: "#64748b", fontSize: "0.85rem" }}>
-                        Coba muat ulang setelah memastikan env Supabase benar.
-                      </p>
-                    </div>
-                    <button className="btn btn--primary" onClick={() => refreshData()}>
-                      Muat Ulang
-                    </button>
-                  </div>
-                </div>
-              ) : null}
-
-              <article className="card">
-                <div className="card__head">
-                  <div>
-                    <h2 className="card__title">Tambah Pelanggaran</h2>
-                    <p className="card__desc">Isi nama pelanggaran dan poin negatif.</p>
-                  </div>
-                  <span className="badge badge--red">Pelanggaran</span>
-                </div>
-
-                <form className="form" onSubmit={handleAddPelanggaran}>
-                  <div className="field">
-                    <label className="label" htmlFor="namaPelanggaran">
-                      Nama Pelanggaran
-                    </label>
-                    <input
-                      className="input"
-                      id="namaPelanggaran"
-                      placeholder="Contoh: Terlambat masuk kelas"
-                      value={formPelanggaranNama}
-                      onChange={(e) => setFormPelanggaranNama(e.target.value)}
-                      required
-                    />
-                  </div>
-
-                  <div className="field">
-                    <label className="label" htmlFor="poinPelanggaran">
-                      Poin (negatif)
-                    </label>
-                    <input
-                      className="input"
-                      id="poinPelanggaran"
-                      type="number"
-                      placeholder="-10"
-                      value={formPelanggaranPoin}
-                      onChange={(e) => setFormPelanggaranPoin(e.target.value)}
-                      max={0}
-                      required
-                    />
-                  </div>
-
-                  <div className="actions">
-                    <button className="btn btn--danger" type="submit" disabled={isLoading}>
-                      Tambah Pelanggaran
-                    </button>
-                  </div>
-                </form>
-
-                <div className="divider" />
-
-                <div className="list">
-                  {pelanggaranData.length === 0 ? (
-                    <div className="muted">Belum ada pelanggaran. Tambahkan pelanggaran pertama!</div>
-                  ) : (
-                    pelanggaranData.map((pelanggaran) => (
-                      <div key={pelanggaran.id} className="list__row">
-                        <div>
-                          <div className="list__title">{pelanggaran.nama_pelanggaran}</div>
-                          <div className="list__meta">Kode: {pelanggaran.id}</div>
-                        </div>
-                        <div className="right">
-                          <span className="chip chip--red">{pelanggaran.poin_pelanggaran}</span>
-                          <button
-                            className="icon-btn"
-                            title="Hapus"
-                            type="button"
-                            onClick={() => {
-                              if (confirmDeletePelanggaranIds[pelanggaran.id]) {
-                                handleDeletePelanggaran(pelanggaran);
-                                setConfirmDeletePelanggaranIds((prev) => ({ ...prev, [pelanggaran.id]: false }));
-                              } else {
-                                setConfirmDeletePelanggaranIds((prev) => ({ ...prev, [pelanggaran.id]: true }));
-                                setTimeout(() => {
-                                  setConfirmDeletePelanggaranIds((prev) => ({ ...prev, [pelanggaran.id]: false }));
-                                }, 3000);
-                              }
-                            }}
-                          >
-                            {confirmDeletePelanggaranIds[pelanggaran.id] ? "Yakin?" : "Hapus"}
-                          </button>
-                        </div>
-                      </div>
-                    ))
-                  )}
-                </div>
-              </article>
-            </div>
-          </main>
+          </div>
         </div>
+
+        {loadError ? (
+          <div className="glass-card rounded-2xl p-4 md:p-6 mb-4 md:mb-6 premium-shadow">
+            <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+              <div>
+                <p className="font-semibold" style={{ color: "#0f172a" }}>
+                  Perhatian: {loadError}
+                </p>
+                <p style={{ color: "#64748b", fontSize: "0.85rem" }}>
+                  Coba muat ulang setelah memastikan env Supabase benar.
+                </p>
+              </div>
+              <button className="btn btn--primary" onClick={() => refreshData()}>
+                Muat Ulang
+              </button>
+            </div>
+          </div>
+        ) : null}
+
+        <article className="card">
+          <div className="card__head">
+            <div>
+              <h2 className="card__title">Tambah Pelanggaran</h2>
+              <p className="card__desc">Isi nama pelanggaran dan poin negatif.</p>
+            </div>
+            <span className="badge badge--red">Pelanggaran</span>
+          </div>
+
+          <form className="form" onSubmit={handleAddPelanggaran}>
+            <div className="field">
+              <label className="label" htmlFor="namaPelanggaran">
+                Nama Pelanggaran
+              </label>
+              <input
+                className="input"
+                id="namaPelanggaran"
+                placeholder="Contoh: Terlambat masuk kelas"
+                value={formPelanggaranNama}
+                onChange={(e) => setFormPelanggaranNama(e.target.value)}
+                required
+              />
+            </div>
+
+            <div className="field">
+              <label className="label" htmlFor="poinPelanggaran">
+                Poin (negatif)
+              </label>
+              <input
+                className="input"
+                id="poinPelanggaran"
+                type="number"
+                placeholder="-10"
+                value={formPelanggaranPoin}
+                onChange={(e) => setFormPelanggaranPoin(e.target.value)}
+                max={0}
+                required
+              />
+            </div>
+
+            <div className="actions">
+              <button className="btn btn--danger" type="submit" disabled={isLoading}>
+                Tambah Pelanggaran
+              </button>
+            </div>
+          </form>
+
+          <div className="divider" />
+
+          <div className="list">
+            {pelanggaranData.length === 0 ? (
+              <div className="muted">Belum ada pelanggaran. Tambahkan pelanggaran pertama!</div>
+            ) : (
+              pelanggaranData.map((pelanggaran) => (
+                <div key={pelanggaran.id} className="list__row">
+                  <div>
+                    <div className="list__title">{pelanggaran.nama_pelanggaran}</div>
+                    <div className="list__meta">Kode: {pelanggaran.id}</div>
+                  </div>
+                  <div className="right">
+                    <span className="chip chip--red">{pelanggaran.poin_pelanggaran}</span>
+                    <button
+                      className="icon-btn"
+                      title="Hapus"
+                      type="button"
+                      onClick={() => {
+                        if (confirmDeletePelanggaranIds[pelanggaran.id]) {
+                          handleDeletePelanggaran(pelanggaran);
+                          setConfirmDeletePelanggaranIds((prev) => ({ ...prev, [pelanggaran.id]: false }));
+                        } else {
+                          setConfirmDeletePelanggaranIds((prev) => ({ ...prev, [pelanggaran.id]: true }));
+                          setTimeout(() => {
+                            setConfirmDeletePelanggaranIds((prev) => ({ ...prev, [pelanggaran.id]: false }));
+                          }, 3000);
+                        }
+                      }}
+                    >
+                      {confirmDeletePelanggaranIds[pelanggaran.id] ? "Yakin?" : "Hapus"}
+                    </button>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </article>
       </div>
 
       {notif ? (

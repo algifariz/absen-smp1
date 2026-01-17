@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -293,151 +293,93 @@ export default function AbsensiPage() {
   }, [scanStatus]);
 
   return (
-    <div className="min-h-full w-full">
-      <div className="gradient-bg min-h-full">
-        <div
-          className="admin-app fade-in"
-          style={{
-            ["--admin-primary"]: "#2563eb",
-            ["--admin-secondary"]: "#059669",
-            ["--admin-text"]: "#0f172a",
-          }}
-        >
-          <aside className="admin-sidebar">
-            <div className="brand">
-              <div className="brand__logo">📷</div>
-              <div className="brand__text">
-                <div className="brand__title">Panel Admin</div>
-                <div className="brand__sub">Absensi • Poin • Pelanggaran</div>
-              </div>
+    <div className="fade-in">
+      <div className="absensi-shell">
+        <div className="glass-card rounded-2xl p-4 md:p-6 mb-4 md:mb-6 premium-shadow absensi-hero">
+          <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+            <div>
+              <h1 className="font-black tracking-tight mb-2" style={{ fontSize: "2rem", color: "#0f172a" }}>
+                Operasional Absensi
+              </h1>
+              <p style={{ fontSize: "0.9rem", color: "#64748b" }}>
+                Scan barcode/QR atau input manual untuk mencatat kehadiran.
+              </p>
             </div>
+          </div>
+        </div>
 
-            <nav className="nav">
-              <Link className="nav__item" href="/">
-                <span className="nav__icon">📦</span>
-                <span>Data Master</span>
-              </Link>
-              <Link className="nav__item nav__item--active" href="/admin/absensi">
-                <span className="nav__icon">🧾</span>
-                <span>Operational Absensi</span>
-              </Link>
-              <Link className="nav__item" href="/admin/siswa">
-                <span className="nav__icon">👥</span>
-                <span>Kelola Siswa</span>
-              </Link>
-              <Link className="nav__item" href="/admin/pelanggaran">
-                <span className="nav__icon">⚠️</span>
-                <span>Pelanggaran</span>
-              </Link>
-              <Link className="nav__item" href="/admin/poin">
-                <span className="nav__icon">⭐</span>
-                <span>Poin</span>
-              </Link>
-            </nav>
-
-            <div className="sidebar__footer">
-              <div className="pill">
-                <span className="dot dot--ok" />
-                <span>Online</span>
+        {loadError ? (
+          <div className="glass-card rounded-2xl p-4 md:p-6 mb-4 md:mb-6 premium-shadow">
+            <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+              <div>
+                <p className="font-semibold" style={{ color: "#0f172a" }}>
+                   {loadError}
+                </p>
+                <p style={{ color: "#64748b", fontSize: "0.85rem" }}>
+                  Coba muat ulang setelah memastikan env Supabase benar.
+                </p>
               </div>
-              <Link className="btn btn--ghost w-full" href="/">
-                Kembali ke Admin
-              </Link>
+              <button className="btn btn--primary" onClick={() => refreshData()}>
+                Muat Ulang
+              </button>
             </div>
-          </aside>
+          </div>
+        ) : null}
 
-          <main className="admin-main">
-            <div className="absensi-shell">
-              <div className="glass-card rounded-2xl p-4 md:p-6 mb-4 md:mb-6 premium-shadow absensi-hero">
-                <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-                  <div>
-                    <h1 className="font-black tracking-tight mb-2" style={{ fontSize: "2rem", color: "#0f172a" }}>
-                      Operasional Absensi
-                    </h1>
-                    <p style={{ fontSize: "0.9rem", color: "#64748b" }}>
-                      Scan barcode/QR atau input manual untuk mencatat kehadiran.
-                    </p>
-                  </div>
-                  <Link className="btn btn--ghost" href="/">
-                    Kembali ke Admin
-                  </Link>
-                </div>
-              </div>
+        <div className="card absensi-card">
+          <div className="card__head">
+            <div>
+              <h2 className="card__title">Scan Barcode / QR Absensi</h2>
+              <p className="card__desc">Gunakan kamera atau input manual untuk absensi.</p>
+            </div>
+            <span className="badge badge--green">Absensi</span>
+          </div>
 
-          {loadError ? (
-            <div className="glass-card rounded-2xl p-4 md:p-6 mb-4 md:mb-6 premium-shadow">
-              <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-                <div>
-                  <p className="font-semibold" style={{ color: "#0f172a" }}>
-                     {loadError}
-                  </p>
-                  <p style={{ color: "#64748b", fontSize: "0.85rem" }}>
-                    Coba muat ulang setelah memastikan env Supabase benar.
-                  </p>
+          <div className="two-col">
+            <button className="btn btn--primary" type="button" onClick={() => setScanModalOpen(true)}>
+              Buka Scanner
+            </button>
+            <button className="btn btn--ghost" type="button" onClick={() => setManualInputOpen((prev) => !prev)}>
+              Input Manual
+            </button>
+          </div>
+
+          {manualInputOpen ? (
+            <div className="manual">
+              <form
+                className="form"
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  const barcodeId = manualBarcode.trim();
+                  if (barcodeId) {
+                    processAbsensi(barcodeId);
+                    setManualBarcode("");
+                  }
+                }}
+              >
+                <div className="field">
+                  <label className="label" htmlFor="kode">
+                    Kode QR/Barcode
+                  </label>
+                  <input
+                    className="input"
+                    id="kode"
+                    placeholder="Tempel kode di sini..."
+                    value={manualBarcode}
+                    onChange={(e) => setManualBarcode(e.target.value)}
+                  />
                 </div>
-                <button className="btn btn--primary" onClick={() => refreshData()}>
-                  Muat Ulang
-                </button>
-              </div>
+                <div className="actions">
+                  <button className="btn btn--primary" type="submit" disabled={isLoading}>
+                    Proses
+                  </button>
+                  <button className="btn btn--ghost" type="button" onClick={() => setManualInputOpen(false)}>
+                    Batal
+                  </button>
+                </div>
+              </form>
             </div>
           ) : null}
-
-          <div className="card absensi-card">
-            <div className="card__head">
-              <div>
-                <h2 className="card__title">Scan Barcode / QR Absensi</h2>
-                <p className="card__desc">Gunakan kamera atau input manual untuk absensi.</p>
-              </div>
-              <span className="badge badge--green">Absensi</span>
-            </div>
-
-            <div className="two-col">
-              <button className="btn btn--primary" type="button" onClick={() => setScanModalOpen(true)}>
-                Buka Scanner
-              </button>
-              <button className="btn btn--ghost" type="button" onClick={() => setManualInputOpen((prev) => !prev)}>
-                Input Manual
-              </button>
-            </div>
-
-            {manualInputOpen ? (
-              <div className="manual">
-                <form
-                  className="form"
-                  onSubmit={(e) => {
-                    e.preventDefault();
-                    const barcodeId = manualBarcode.trim();
-                    if (barcodeId) {
-                      processAbsensi(barcodeId);
-                      setManualBarcode("");
-                    }
-                  }}
-                >
-                  <div className="field">
-                    <label className="label" htmlFor="kode">
-                      Kode QR/Barcode
-                    </label>
-                    <input
-                      className="input"
-                      id="kode"
-                      placeholder="Tempel kode di sini..."
-                      value={manualBarcode}
-                      onChange={(e) => setManualBarcode(e.target.value)}
-                    />
-                  </div>
-                  <div className="actions">
-                    <button className="btn btn--primary" type="submit" disabled={isLoading}>
-                      Proses
-                    </button>
-                    <button className="btn btn--ghost" type="button" onClick={() => setManualInputOpen(false)}>
-                      Batal
-                    </button>
-                  </div>
-                </form>
-              </div>
-            ) : null}
-            </div>
-          </main>
         </div>
       </div>
 
@@ -548,4 +490,3 @@ export default function AbsensiPage() {
     </div>
   );
 }
-
