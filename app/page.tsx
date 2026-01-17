@@ -1,9 +1,7 @@
-﻿
 "use client";
 
 import Link from "next/link";
-import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Html5Qrcode } from "html5-qrcode";
+import { useEffect, useMemo, useRef, useState } from "react";
 import QRCode from "qrcode";
 import { supabase } from "@/lib/supabaseClient";
 
@@ -17,14 +15,6 @@ type SiswaRecord = {
   dibuat: string;
   barcode_id: string;
   absen_hari_ini: string | null;
-  created_at: string;
-};
-
-type PelanggaranRecord = {
-  id: string;
-  type: "pelanggaran";
-  nama_pelanggaran: string;
-  poin_pelanggaran: number;
   created_at: string;
 };
 
@@ -58,8 +48,6 @@ const defaultConfig: ConfigState = {
   tombol_simpan: "Simpan Siswa",
 };
 
-type ViewMode = "leaderboard" | "admin";
-
 function getTodayDate() {
   const now = new Date();
   const year = now.getFullYear();
@@ -68,63 +56,27 @@ function getTodayDate() {
   return `${year}-${month}-${day}`;
 }
 
-function generateBarcodeId() {
-  return `STD${Date.now()}${Math.random().toString(36).slice(2, 7).toUpperCase()}`;
-}
-
 export default function Home() {
   const [config] = useState<ConfigState>(defaultConfig);
-  const [currentView, setCurrentView] = useState<ViewMode>("leaderboard");
   const [selectedKelas, setSelectedKelas] = useState<string>("all");
   const [siswaData, setSiswaData] = useState<SiswaRecord[]>([]);
-  const [pelanggaranData, setPelanggaranData] = useState<PelanggaranRecord[]>([]);
-  const [manualInputOpen, setManualInputOpen] = useState(false);
-  const [scanModalOpen, setScanModalOpen] = useState(false);
-  const [scanSession, setScanSession] = useState(0);
-  const [scanStatus, setScanStatus] = useState<"idle" | "scanning" | "success" | "error">("idle");
+
+  // Barcode Modal State
   const [barcodeModalOpen, setBarcodeModalOpen] = useState(false);
   const [barcodeTarget, setBarcodeTarget] = useState<SiswaRecord | null>(null);
   const [qrDataUrl, setQrDataUrl] = useState<string>("");
-  const [confirmDeleteIds, setConfirmDeleteIds] = useState<Record<string, boolean>>({});
-  const [confirmDeletePelanggaranIds, setConfirmDeletePelanggaranIds] = useState<
-    Record<string, boolean>
-  >({});
-  const [editingNama, setEditingNama] = useState<Record<string, string>>({});
-  const [formNama, setFormNama] = useState("");
-  const [formKelas, setFormKelas] = useState("");
-  const [formPelanggaranNama, setFormPelanggaranNama] = useState("");
-  const [formPelanggaranPoin, setFormPelanggaranPoin] = useState("");
-  const [formPoinSiswaId, setFormPoinSiswaId] = useState("");
-  const [formPoinSiswaQuery, setFormPoinSiswaQuery] = useState("");
-  const [formPoinJumlah, setFormPoinJumlah] = useState("");
-  const [manualBarcode, setManualBarcode] = useState("");
+
   const [notif, setNotif] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
-  const [scanFeedback, setScanFeedback] = useState<{ name: string; message: string; ok: boolean } | null>(null);
+
   const notifTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const scanCloseTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const qrScannerRef = useRef<Html5Qrcode | null>(null);
-  const scannerRunningRef = useRef<boolean>(false);
-  const processAbsensiRef = useRef<(barcodeId: string) => Promise<void>>(null!);
-  const addSiswaRef = useRef<HTMLInputElement | null>(null);
   const [todayDate] = useState<string>(getTodayDate());
   const isClientReady = todayDate !== "";
 
   const kelasList = useMemo(() => {
     const kelasSet = new Set(siswaData.map((s) => s.kelas).filter(Boolean));
     return Array.from(kelasSet).sort();
-  }, [siswaData]);
-
-  const siswaByKelas = useMemo(() => {
-    const groups = new Map<string, SiswaRecord[]>();
-    siswaData.forEach((siswa) => {
-      const key = siswa.kelas?.trim() ? siswa.kelas.trim().toUpperCase() : "Tanpa Kelas";
-      const existing = groups.get(key) ?? [];
-      existing.push(siswa);
-      groups.set(key, existing);
-    });
-    return Array.from(groups.entries()).sort((a, b) => a[0].localeCompare(b[0]));
   }, [siswaData]);
 
   const filteredSiswa = useMemo(() => {
@@ -150,21 +102,12 @@ export default function Home() {
           .order("poin", { ascending: false });
         if (siswaError) throw siswaError;
 
-        const { data: pelanggaranRows, error: pelanggaranError } = await supabase
-          .from("records")
-          .select("*")
-          .eq("type", "pelanggaran")
-          .order("poin_pelanggaran", { ascending: true });
-        if (pelanggaranError) throw pelanggaranError;
-
         if (!isActive) return;
         setSiswaData((siswaRows as SiswaRecord[]) || []);
-        setPelanggaranData((pelanggaranRows as PelanggaranRecord[]) || []);
       } catch {
         if (!isActive) return;
         setLoadError("Gagal memuat data. Periksa koneksi dan konfigurasi Supabase.");
         setSiswaData([]);
-        setPelanggaranData([]);
       } finally {
         if (isActive) setIsLoading(false);
       }
@@ -215,354 +158,12 @@ export default function Home() {
         .order("poin", { ascending: false });
       if (siswaError) throw siswaError;
 
-      const { data: pelanggaranRows, error: pelanggaranError } = await supabase
-        .from("records")
-        .select("*")
-        .eq("type", "pelanggaran")
-        .order("poin_pelanggaran", { ascending: true });
-      if (pelanggaranError) throw pelanggaranError;
-
       setSiswaData((siswaRows as SiswaRecord[]) || []);
-      setPelanggaranData((pelanggaranRows as PelanggaranRecord[]) || []);
     } catch {
       setLoadError("Gagal memuat data. Periksa koneksi dan konfigurasi Supabase.");
       showNotif("\u{274C} Gagal memuat data terbaru");
     }
   }, [showNotif]);
-
-  const handleAddSiswa = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (siswaData.length >= 999) {
-      showNotif("\u{26A0}\u{FE0F} Maksimal 999 siswa tercapai!");
-      return;
-    }
-    const nama = formNama.trim();
-    const kelas = formKelas.trim().toUpperCase();
-    if (!nama || !kelas) return;
-
-    const barcodeId = generateBarcodeId();
-
-    const { error } = await supabase.from("records").insert({
-      id: Date.now().toString(),
-      type: "siswa",
-      nama,
-      kelas,
-      poin: 0,
-      kehadiran: 0,
-      dibuat: new Date().toISOString(),
-      barcode_id: barcodeId,
-      absen_hari_ini: null,
-    });
-
-    if (!error) {
-      setFormNama("");
-      setFormKelas("");
-      showNotif(`\u{2705} ${nama} (${kelas}) berhasil ditambahkan!`);
-      refreshData();
-    } else {
-      showNotif(`\u{274C} Gagal menambahkan siswa: ${error.message}`);
-    }
-  };
-
-  const handleAddPelanggaran = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (pelanggaranData.length >= 50) {
-      showNotif("\u{26A0}\u{FE0F} Maksimal 50 pelanggaran tercapai!");
-      return;
-    }
-    const nama = formPelanggaranNama.trim();
-    const poin = Number.parseInt(formPelanggaranPoin, 10);
-    if (!nama || Number.isNaN(poin) || poin > 0) {
-      showNotif("\u{26A0}\u{FE0F} Poin pelanggaran harus negatif!");
-      return;
-    }
-
-    const { error } = await supabase.from("records").insert({
-      id: Date.now().toString(),
-      type: "pelanggaran",
-      nama_pelanggaran: nama,
-      poin_pelanggaran: poin,
-    });
-
-    if (!error) {
-      setFormPelanggaranNama("");
-      setFormPelanggaranPoin("");
-      showNotif(`\u{2705} Pelanggaran "${nama}" (${poin}) ditambahkan!`);
-      refreshData();
-    } else {
-      showNotif(`\u{274C} Gagal menambahkan pelanggaran: ${error.message}`);
-    }
-  };
-
-  const handleAddPoinCustom = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const siswa =
-      siswaData.find((item) => item.id === formPoinSiswaId) ??
-      siswaData.find(
-        (item) =>
-          `${item.nama} (${item.kelas})`.toLowerCase() === formPoinSiswaQuery.toLowerCase().trim(),
-      );
-    const jumlah = Number.parseInt(formPoinJumlah, 10);
-    if (!siswa) {
-      showNotif("\u{26A0}\u{FE0F} Pilih siswa terlebih dahulu");
-      return;
-    }
-    if (Number.isNaN(jumlah) || jumlah <= 0) {
-      showNotif("\u{26A0}\u{FE0F} Jumlah poin harus lebih dari 0");
-      return;
-    }
-    const ok = await handleUpdateSiswa(siswa, { poin: siswa.poin + jumlah });
-    if (ok) {
-      showNotif(`\u{2705} +${jumlah} poin untuk ${siswa.nama}`);
-      setFormPoinSiswaId("");
-      setFormPoinSiswaQuery("");
-      setFormPoinJumlah("");
-    } else {
-      showNotif("\u{274C} Gagal menambah poin");
-    }
-  };
-
-  const handleUpdateSiswa = useCallback(async (siswa: SiswaRecord, updates: Partial<SiswaRecord>) => {
-    const { error } = await supabase
-      .from("records")
-      .update(updates)
-      .eq("id", siswa.id)
-      .eq("type", "siswa");
-
-    if (!error) {
-      setSiswaData((prev) =>
-        prev.map((item) => (item.id === siswa.id ? { ...item, ...updates } : item)),
-      );
-      refreshData();
-      return true;
-    }
-    return false;
-  }, [refreshData]);
-
-  const handleDeleteSiswa = async (siswa: SiswaRecord) => {
-    const { error } = await supabase
-      .from("records")
-      .delete()
-      .eq("id", siswa.id)
-      .eq("type", "siswa");
-    if (!error) {
-      showNotif(`${siswa.nama} telah dihapus`);
-      refreshData();
-    } else {
-      showNotif("\u{274C} Gagal menghapus");
-    }
-  };
-
-  const handleDeletePelanggaran = async (pelanggaran: PelanggaranRecord) => {
-    const { error } = await supabase
-      .from("records")
-      .delete()
-      .eq("id", pelanggaran.id)
-      .eq("type", "pelanggaran");
-    if (!error) {
-      showNotif(`Pelanggaran "${pelanggaran.nama_pelanggaran}" dihapus`);
-      refreshData();
-    } else {
-      showNotif("\u{274C} Gagal menghapus");
-    }
-  };
-
-  const processAbsensi = useCallback(async (barcodeId: string) => {
-    const siswa = siswaData.find((s) => s.barcode_id === barcodeId);
-    if (!siswa) {
-      const message = "Barcode tidak ditemukan!";
-      showNotif(`\u{274C} ${message}`);
-      setScanFeedback({ name: "Tidak dikenal", message, ok: false });
-      return;
-    }
-    const todayDate = getTodayDate();
-    if (siswa.absen_hari_ini === todayDate) {
-      const message = `${siswa.nama} sudah absen hari ini!`;
-      showNotif(`\u{26A0}\u{FE0F} ${message}`);
-      setScanFeedback({ name: siswa.nama, message, ok: false });
-      return;
-    }
-
-    const ok = await handleUpdateSiswa(siswa, {
-      kehadiran: siswa.kehadiran + 1,
-      absen_hari_ini: todayDate,
-    });
-
-    if (ok) {
-      const message = `${siswa.nama} berhasil absen!`;
-      showNotif(`\u{2705} ${message}`);
-      setScanFeedback({ name: siswa.nama, message, ok: true });
-    } else {
-      const message = "Gagal mencatat absensi";
-      showNotif(`\u{274C} ${message}`);
-      setScanFeedback({ name: siswa.nama, message, ok: false });
-    }
-  }, [siswaData, showNotif, handleUpdateSiswa]);
-
-  useEffect(() => {
-    processAbsensiRef.current = processAbsensi;
-  }, [processAbsensi]);
-
-  useEffect(() => {
-    if (!scanModalOpen) {
-      if (qrScannerRef.current) {
-        const scanner = qrScannerRef.current;
-        qrScannerRef.current = null;
-        if (scannerRunningRef.current) {
-          scannerRunningRef.current = false;
-          scanner
-            .stop()
-            .catch(() => undefined)
-            .finally(() => {
-              scanner.clear();
-            });
-        } else {
-          scanner.clear();
-        }
-      }
-      setScanFeedback(null);
-      setScanStatus("idle");
-      if (scanCloseTimeoutRef.current) {
-        clearTimeout(scanCloseTimeoutRef.current);
-        scanCloseTimeoutRef.current = null;
-      }
-      return;
-    }
-
-    setScanFeedback(null);
-    setScanStatus("scanning");
-
-    if (!navigator?.mediaDevices?.getUserMedia) {
-      showNotif("\u{274C} Kamera tidak tersedia di perangkat ini");
-      setScanFeedback({ name: "Kamera", message: "Kamera tidak tersedia di perangkat ini", ok: false });
-      setScanStatus("error");
-      return;
-    }
-
-    const scanner = new Html5Qrcode("qr-reader");
-    qrScannerRef.current = scanner;
-
-    const startScan = async () => {
-      try {
-        const devices = await Html5Qrcode.getCameras();
-        const preferredDevice = devices.find((device) =>
-          /back|rear|environment/i.test(device.label),
-        );
-        const deviceId = preferredDevice?.id || devices[0]?.id;
-        if (!deviceId) {
-          throw new Error("NoCameraFound");
-        }
-        await scanner.start(
-          { deviceId: { exact: deviceId } },
-          { fps: 10, qrbox: { width: 260, height: 260 } },
-          (decodedText) => {
-            if (!decodedText) return;
-            setScanStatus("success");
-            processAbsensiRef.current(decodedText);
-            if (scannerRunningRef.current) {
-              scannerRunningRef.current = false;
-              scanner.stop().catch(() => undefined);
-            }
-            scanCloseTimeoutRef.current = setTimeout(() => {
-              setScanModalOpen(false);
-            }, 1500);
-          },
-          () => undefined,
-        );
-        scannerRunningRef.current = true;
-      } catch (error) {
-        const err = error as { name?: string; message?: string };
-        const reason = err?.name || err?.message || "UnknownError";
-        let message = "Tidak bisa mengakses kamera";
-        if (reason === "NotAllowedError") message = "Izin kamera ditolak. Silakan izinkan kamera.";
-        if (reason === "NotFoundError") message = "Kamera tidak ditemukan.";
-        if (reason === "NotReadableError") message = "Kamera sedang dipakai aplikasi lain.";
-        if (reason === "SecurityError") message = "Gunakan https atau localhost untuk akses kamera.";
-        if (reason === "NoCameraFound") message = "Kamera tidak ditemukan.";
-        showNotif(`\u{274C} ${message}`);
-        setScanFeedback({ name: "Kamera", message, ok: false });
-        setScanStatus("error");
-      }
-    };
-
-    startScan();
-
-    return () => {
-      if (qrScannerRef.current) {
-        const scanner = qrScannerRef.current;
-        qrScannerRef.current = null;
-        if (scannerRunningRef.current) {
-          scannerRunningRef.current = false;
-          scanner
-            .stop()
-            .catch(() => undefined)
-            .finally(() => {
-              scanner.clear();
-            });
-        } else {
-          scanner.clear();
-        }
-      }
-    };
-  }, [scanModalOpen, scanSession, showNotif]);
-  const handlePlusPoin = async (siswa: SiswaRecord) => {
-    const todayDate = getTodayDate();
-    if (siswa.absen_hari_ini !== todayDate) {
-      showNotif(`\u{26A0}\u{FE0F} ${siswa.nama} belum absen hari ini!`);
-      return;
-    }
-
-    const ok = await handleUpdateSiswa(siswa, { poin: siswa.poin + 10 });
-    if (ok) {
-      showNotif(`\u{2705} +10 poin untuk ${siswa.nama}`);
-    } else {
-      showNotif("\u{274C} Gagal menambah poin");
-    }
-  };
-
-  const handleMinusPoin = async (siswa: SiswaRecord) => {
-    const ok = await handleUpdateSiswa(siswa, {
-      poin: Math.max(0, siswa.poin - 10),
-      kehadiran: Math.max(0, siswa.kehadiran - 1),
-    });
-    if (ok) {
-      showNotif(`-10 poin untuk ${siswa.nama}`);
-    } else {
-      showNotif("\u{274C} Gagal mengurangi poin");
-    }
-  };
-
-  const handlePelanggaran = async (
-    siswa: SiswaRecord,
-    poinPenalti: number,
-    namaPelanggaran: string,
-  ) => {
-    const ok = await handleUpdateSiswa(siswa, {
-      poin: Math.max(0, siswa.poin + poinPenalti),
-    });
-    if (ok) {
-      showNotif(`\u{26A0}\u{FE0F} ${siswa.nama}: ${namaPelanggaran} (${poinPenalti} poin)`);
-    } else {
-      showNotif("\u{274C} Gagal mencatat pelanggaran");
-    }
-  };
-
-  const handleEditNama = async (siswa: SiswaRecord) => {
-    const newName = (editingNama[siswa.id] || "").trim();
-    if (!newName || newName === siswa.nama) return;
-    const ok = await handleUpdateSiswa(siswa, { nama: newName });
-    if (ok) {
-      showNotif(`\u{2705} Nama diubah menjadi "${newName}"`);
-    } else {
-      showNotif("\u{274C} Gagal mengubah nama");
-    }
-  };
-
-  const handleRestartScan = () => {
-    setScanFeedback(null);
-    setScanStatus("scanning");
-    setScanSession((prev) => prev + 1);
-  };
 
   const handleDownloadBarcode = async (siswa: SiswaRecord) => {
     showNotif("\u{23F3} Memproses download...");
@@ -665,20 +266,7 @@ export default function Home() {
   const secondaryColor = config.secondary_action || defaultConfig.secondary_action;
   const baseSize = config.font_size || defaultConfig.font_size;
   const barcodeStatusKnown = isClientReady;
-  const scanStatusLabel =
-    scanStatus === "scanning"
-      ? "Sedang memindai..."
-      : scanStatus === "success"
-        ? "Kode terdeteksi"
-        : scanStatus === "error"
-          ? "Kamera bermasalah"
-          : "Siap memindai";
-  const scanStatusStyle =
-    scanStatus === "success"
-      ? { background: "rgba(16, 185, 129, 0.2)", border: "1px solid rgba(16, 185, 129, 0.4)", color: "#10b981" }
-      : scanStatus === "error"
-        ? { background: "rgba(239, 68, 68, 0.2)", border: "1px solid rgba(239, 68, 68, 0.4)", color: "#ef4444" }
-        : { background: "rgba(59, 130, 246, 0.2)", border: "1px solid rgba(59, 130, 246, 0.4)", color: primaryColor };
+
   const barcodeHadir = barcodeStatusKnown && barcodeTarget?.absen_hari_ini === todayDate;
   const barcodeStatusLabel = !barcodeStatusKnown
     ? "Memuat..."
@@ -750,7 +338,7 @@ export default function Home() {
             </div>
           ) : null}
 
-          {currentView === "leaderboard" ? (
+
             <>
               <div className="glass-card rounded-2xl p-4 md:p-8 mb-4 md:mb-8 premium-shadow">
                 <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
@@ -765,16 +353,14 @@ export default function Home() {
                       Sistem Poin & Prestasi Siswa
                     </p>
                   </div>
-                  <button
-                    className="luxury-button px-5 py-2.5 md:px-6 md:py-3 rounded-xl font-semibold w-full md:w-auto"
+                  <Link
+                    href="/admin/siswa"
+                    className="luxury-button px-5 py-2.5 md:px-6 md:py-3 rounded-xl font-semibold w-full md:w-auto inline-flex items-center justify-center gap-2"
                     style={{ background: primaryColor, color: "white", fontSize: `${baseSize * 0.9}px` }}
-                    onClick={() => setCurrentView("admin")}
                   >
-                    <span className="flex items-center justify-center gap-2">
                       <span>{"\u{1F6E0}\u{FE0F}"}</span>
                       <span>{config.tombol_admin || defaultConfig.tombol_admin}</span>
-                    </span>
-                  </button>
+                  </Link>
                 </div>
               </div>
 
@@ -863,16 +449,16 @@ export default function Home() {
                 </div>
               </div>
 
-              <div className="space-y-3 md:space-y-5">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 {isLoading ? (
-                  <div className="glass-card rounded-2xl text-center py-16 md:py-24 premium-shadow">
+                  <div className="glass-card rounded-2xl text-center py-16 md:py-24 premium-shadow col-span-full">
                     <div style={{ fontSize: `${baseSize * 3.5}px`, marginBottom: 16, opacity: 0.2 }}>{"\u{23F3}"}</div>
                     <p style={{ fontSize: `${baseSize}px`, color: "#94a3b8", fontWeight: 500 }}>
                       Memuat data siswa...
                     </p>
                   </div>
                 ) : filteredSiswa.length === 0 ? (
-                  <div className="glass-card rounded-2xl text-center py-16 md:py-24 premium-shadow">
+                  <div className="glass-card rounded-2xl text-center py-16 md:py-24 premium-shadow col-span-full">
                     <div style={{ fontSize: `${baseSize * 4}px`, marginBottom: 16, opacity: 0.15 }}>{"\u{1F4ED}"}</div>
                     <p style={{ fontSize: `${baseSize}px`, color: "#94a3b8", fontWeight: 500 }}>
                       Belum ada data siswa{selectedKelas !== "all" ? ` di kelas ${selectedKelas}` : ""}
@@ -880,34 +466,44 @@ export default function Home() {
                   </div>
                 ) : (
                   filteredSiswa.map((siswa) => (
-                    <div key={siswa.id} className="glass-card rounded-2xl p-4 md:p-6 premium-shadow">
-                      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                        <div className="flex items-center gap-3 md:gap-6 w-full sm:w-auto">
-                          <div className="flex-1">
-                            <div className="font-semibold mb-2" style={{ fontSize: `${baseSize * 1.1}px`, color: textColor }}>
+                    <div
+                      key={siswa.id}
+                      className="glass-card rounded-2xl p-4 md:p-6 premium-shadow cursor-pointer hover:scale-[1.02] transition-transform"
+                      onClick={() => {
+                        setBarcodeTarget(siswa);
+                        setBarcodeModalOpen(true);
+                      }}
+                    >
+                      <div className="flex flex-col gap-4">
+                        <div className="flex justify-between items-start">
+                          <div>
+                            <div className="font-semibold mb-1" style={{ fontSize: `${baseSize * 1.1}px`, color: textColor }}>
                               {siswa.nama}
                             </div>
                             <div className="flex items-center gap-2 flex-wrap">
                               {siswa.kelas ? (
                                 <div className="px-2.5 py-1 rounded-lg" style={{ background: "#eff6ff", border: "1px solid #bfdbfe" }}>
                                   <span style={{ fontSize: `${baseSize * 0.75}px`, color: "#2563eb", fontWeight: 600 }}>
-                                    Kelas {siswa.kelas}
+                                    {siswa.kelas}
                                   </span>
                                 </div>
                               ) : null}
-                              <div className="px-2.5 py-1 rounded-lg" style={{ background: "#f0fdf4", border: "1px solid #bbf7d0" }}>
+                            </div>
+                          </div>
+                          <div
+                            className="px-3 py-1.5 rounded-lg font-bold"
+                            style={{ background: primaryColor, color: "white", fontSize: `${baseSize}px` }}
+                          >
+                            {siswa.poin} <span style={{ fontSize: "0.8em" }}>{"\u{2B50}"}</span>
+                          </div>
+                        </div>
+                        <div className="flex items-center justify-between border-t border-slate-100 pt-3 mt-1">
+                           <div className="text-slate-400 text-xs uppercase tracking-wider font-semibold">Kehadiran</div>
+                           <div className="px-2.5 py-1 rounded-lg" style={{ background: "#f0fdf4", border: "1px solid #bbf7d0" }}>
                                 <span style={{ fontSize: `${baseSize * 0.75}px`, color: "#16a34a", fontWeight: 600 }}>
                                   {"\u{2705}"} {siswa.kehadiran}
                                 </span>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                        <div
-                          className="px-4 py-2 md:px-6 md:py-3 rounded-xl font-bold w-full sm:w-auto text-center"
-                          style={{ background: primaryColor, color: "white", fontSize: `${baseSize * 1.2}px` }}
-                        >
-                          {siswa.poin} {"\u{2B50}"}
+                           </div>
                         </div>
                       </div>
                     </div>
@@ -915,320 +511,8 @@ export default function Home() {
                 )}
               </div>
             </>
-          ) : (
-            <div
-              className="admin-app"
-              style={{
-                ["--admin-primary"]: primaryColor,
-                ["--admin-secondary"]: secondaryColor,
-                ["--admin-text"]: textColor,
-              }}
-            >
-              <aside className="admin-sidebar">
-                <div className="brand">
-                  <div className="brand__logo">📷</div>
-                  <div className="brand__text">
-                    <div className="brand__title">{config.judul_admin || defaultConfig.judul_admin}</div>
-                    <div className="brand__sub">Absensi • Poin • Pelanggaran</div>
-                  </div>
-                </div>
-
-                <nav className="nav">
-                  <button className="nav__item nav__item--active" type="button">
-                    <span className="nav__icon">📦</span>
-                    <span>Data Master</span>
-                  </button>
-                  <Link className="nav__item" href="/admin/absensi">
-                    <span className="nav__icon">🧾</span>
-                    <span>Operational Absensi</span>
-                  </Link>
-                  <Link className="nav__item" href="/admin/siswa">
-                    <span className="nav__icon">👥</span>
-                    <span>Kelola Siswa</span>
-                  </Link>
-                  <Link className="nav__item" href="/admin/pelanggaran">
-                    <span className="nav__icon">⚠️</span>
-                    <span>Pelanggaran</span>
-                  </Link>
-                  <Link className="nav__item" href="/admin/poin">
-                    <span className="nav__icon">⭐</span>
-                    <span>Poin</span>
-                  </Link>
-                </nav>
-
-                <div className="sidebar__footer">
-                  <div className="pill">
-                    <span className="dot dot--ok" />
-                    <span>Online</span>
-                  </div>
-                  <button className="btn btn--ghost w-full" type="button" onClick={() => setCurrentView("leaderboard")}>
-                    {config.tombol_kembali || defaultConfig.tombol_kembali}
-                  </button>
-                </div>
-              </aside>
-
-              <main className="admin-main">
-                <header className="topbar">
-                  <div className="topbar__left">
-                    <h1 className="page-title">Dashboard</h1>
-                    <p className="page-subtitle">Kelola siswa, absensi, pelanggaran, dan poin dalam satu tempat.</p>
-                  </div>
-
-                  <div className="topbar__right">
-                    <div className="search">
-                      <span className="search__icon">🔎</span>
-                      <input className="search__input" placeholder="Cari siswa / kelas..." />
-                    </div>
-                    <button
-                      className="btn btn--primary"
-                      type="button"
-                      onClick={() => addSiswaRef.current?.focus()}
-                    >
-                      + Tambah
-                    </button>
-                  </div>
-                </header>
-
-                <section className="admin-grid">
-                  <article className="card">
-                    <div className="card__head">
-                      <div>
-                        <h2 className="card__title">Tambah Siswa Baru</h2>
-                        <p className="card__desc">Input siswa ke data master dengan cepat.</p>
-                      </div>
-                      <span className="badge badge--blue">Data Master</span>
-                    </div>
-
-                    <form className="form" onSubmit={handleAddSiswa}>
-                      <div className="field">
-                        <label className="label" htmlFor="nama">
-                          Nama Siswa
-                        </label>
-                        <input
-                          className="input"
-                          id="nama"
-                          name="nama"
-                          placeholder="Contoh: Budi Santoso"
-                          value={formNama}
-                          ref={addSiswaRef}
-                          onChange={(e) => setFormNama(e.target.value)}
-                          required
-                        />
-                      </div>
-
-                      <div className="field">
-                        <label className="label" htmlFor="kelas">
-                          Kelas
-                        </label>
-                        <input
-                          className="input"
-                          id="kelas"
-                          name="kelas"
-                          placeholder="Contoh: X A"
-                          value={formKelas}
-                          onChange={(e) => setFormKelas(e.target.value)}
-                          required
-                        />
-                      </div>
-
-                      <div className="actions">
-                        <button className="btn btn--primary" type="submit">
-                          {config.tombol_simpan || defaultConfig.tombol_simpan}
-                        </button>
-                        <button
-                          className="btn btn--ghost"
-                          type="reset"
-                          onClick={() => {
-                            setFormNama("");
-                            setFormKelas("");
-                          }}
-                        >
-                          Reset
-                        </button>
-                      </div>
-                    </form>
-                  </article>
-
-
-                  <article className="card">
-                    <div className="card__head">
-                      <div>
-                        <h2 className="card__title">Kelola Daftar Pelanggaran</h2>
-                        <p className="card__desc">Tambah dan atur jenis pelanggaran beserta poinnya.</p>
-                      </div>
-                      <span className="badge badge--red">Pelanggaran</span>
-                    </div>
-
-                    <form className="form" onSubmit={handleAddPelanggaran}>
-                      <div className="field">
-                        <label className="label" htmlFor="namaPelanggaran">
-                          Nama Pelanggaran
-                        </label>
-                        <input
-                          className="input"
-                          id="namaPelanggaran"
-                          placeholder="Contoh: Terlambat masuk kelas"
-                          value={formPelanggaranNama}
-                          onChange={(e) => setFormPelanggaranNama(e.target.value)}
-                          required
-                        />
-                      </div>
-
-                      <div className="field">
-                        <label className="label" htmlFor="poinPelanggaran">
-                          Poin (negatif)
-                        </label>
-                        <input
-                          className="input"
-                          id="poinPelanggaran"
-                          type="number"
-                          placeholder="-10"
-                          value={formPelanggaranPoin}
-                          onChange={(e) => setFormPelanggaranPoin(e.target.value)}
-                          max={0}
-                          required
-                        />
-                      </div>
-
-                      <div className="actions">
-                        <button className="btn btn--danger" type="submit">
-                          + Tambah Pelanggaran
-                        </button>
-                      </div>
-                    </form>
-
-                    <div className="divider" />
-
-                    <div className="list">
-                      {pelanggaranData.length === 0 ? (
-                        <div className="muted">Belum ada pelanggaran. Tambahkan pelanggaran pertama!</div>
-                      ) : (
-                        pelanggaranData.map((pelanggaran) => (
-                          <div key={pelanggaran.id} className="list__row">
-                            <div>
-                              <div className="list__title">{pelanggaran.nama_pelanggaran}</div>
-                              <div className="list__meta">Kode: {pelanggaran.id}</div>
-                            </div>
-                            <div className="right">
-                              <span className="chip chip--red">{pelanggaran.poin_pelanggaran}</span>
-                              <button
-                                className="icon-btn"
-                                title="Hapus"
-                                type="button"
-                                onClick={() => {
-                                  if (confirmDeletePelanggaranIds[pelanggaran.id]) {
-                                    handleDeletePelanggaran(pelanggaran);
-                                    setConfirmDeletePelanggaranIds((prev) => ({ ...prev, [pelanggaran.id]: false }));
-                                  } else {
-                                    setConfirmDeletePelanggaranIds((prev) => ({ ...prev, [pelanggaran.id]: true }));
-                                    setTimeout(() => {
-                                      setConfirmDeletePelanggaranIds((prev) => ({ ...prev, [pelanggaran.id]: false }));
-                                    }, 3000);
-                                  }
-                                }}
-                              >
-                                {confirmDeletePelanggaranIds[pelanggaran.id] ? "Yakin?" : "🗑️"}
-                              </button>
-                            </div>
-                          </div>
-                        ))
-                      )}
-                    </div>
-                  </article>
-
-                  
-
-                  
-                </section>
-              </main>
-            </div>
-          )}
         </div>
       </div>
-      {scanModalOpen ? (
-        <div className="modal-overlay">
-          <div className="glass-card rounded-3xl p-6 md:p-8 max-w-xl w-full mx-4 premium-shadow">
-            <h2 className="font-bold mb-4 text-center" style={{ fontSize: `${baseSize * 1.8}px`, color: textColor }}>
-              {"\u{1F4F1}"} Scan Barcode/QR Siswa
-            </h2>
-            <p className="text-center mb-4" style={{ fontSize: `${baseSize}px`, color: textColor, opacity: 0.7 }}>
-              Pastikan izin kamera aktif dan gunakan koneksi `https` atau `localhost`.
-            </p>
-            <div className="scanner-frame mb-6 mx-auto">
-              <div id="qr-reader" style={{ width: "100%", height: "100%" }} />
-              <div className="scan-line" />
-              <div className="corner-tl" />
-              <div className="corner-tr" />
-              <div className="corner-bl" />
-              <div className="corner-br" />
-            </div>
-            <div className="flex items-center justify-center mb-4">
-              <div
-                className="px-4 py-2 rounded-2xl font-semibold"
-                style={{
-                  ...scanStatusStyle,
-                  fontSize: `${baseSize * 0.85}px`,
-                }}
-              >
-                {scanStatusLabel}
-              </div>
-            </div>
-            <div
-              className="rounded-2xl p-4 mb-6 mx-auto"
-              style={{
-                background: scanFeedback?.ok ? "rgba(16, 185, 129, 0.12)" : "rgba(148, 163, 184, 0.12)",
-                border: scanFeedback?.ok ? "1px solid rgba(16, 185, 129, 0.25)" : "1px solid rgba(148, 163, 184, 0.2)",
-                maxWidth: 420,
-              }}
-            >
-              <div className="flex items-center justify-between">
-                <div>
-                  <div className="font-semibold" style={{ fontSize: `${baseSize * 1.05}px`, color: textColor }}>
-                    {scanFeedback ? scanFeedback.name : "Menunggu scan..."}
-                  </div>
-                  <div style={{ fontSize: `${baseSize * 0.9}px`, color: textColor, opacity: 0.7 }}>
-                    {scanFeedback ? scanFeedback.message : "Arahkan kamera ke barcode atau QR siswa"}
-                  </div>
-                </div>
-                <div style={{ fontSize: `${baseSize * 1.8}px` }}>
-                  {scanFeedback
-                    ? scanFeedback.ok
-                      ? "\u{2705}"
-                      : "\u{26A0}\u{FE0F}"
-                    : scanStatus === "scanning"
-                      ? "\u{1F3AF}"
-                      : "\u{1F50E}"}
-                </div>
-              </div>
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <button
-                className="luxury-button w-full px-8 py-4 rounded-2xl font-bold shadow-lg"
-                style={{
-                  background: `linear-gradient(135deg, ${primaryColor}, #2563eb)`,
-                  color: "white",
-                  fontSize: `${baseSize}px`,
-                }}
-                onClick={handleRestartScan}
-              >
-                Scan Ulang
-              </button>
-              <button
-                className="luxury-button w-full px-8 py-4 rounded-2xl font-bold shadow-lg"
-                style={{
-                  background: "rgba(255, 255, 255, 0.05)",
-                  color: textColor,
-                  border: "2px solid rgba(255, 255, 255, 0.1)",
-                  fontSize: `${baseSize}px`,
-                }}
-                onClick={() => setScanModalOpen(false)}
-              >
-                Tutup Scanner
-              </button>
-            </div>
-          </div>
-        </div>
-      ) : null}
 
       {barcodeModalOpen && barcodeTarget ? (
         <div className="modal-overlay" style={{ animation: "fadeIn 0.4s cubic-bezier(0.4, 0, 0.2, 1)" }}>
@@ -1446,19 +730,3 @@ export default function Home() {
     </div>
   );
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

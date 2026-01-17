@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useState, useRef } from "react";
 import { supabase } from "@/lib/supabaseClient";
 
 type SiswaRecord = {
@@ -33,6 +33,10 @@ function getTodayDate() {
   return `${year}-${month}-${day}`;
 }
 
+function generateBarcodeId() {
+  return `STD${Date.now()}${Math.random().toString(36).slice(2, 7).toUpperCase()}`;
+}
+
 export default function KelolaSiswaPage() {
   const [siswaData, setSiswaData] = useState<SiswaRecord[]>([]);
   const [pelanggaranData, setPelanggaranData] = useState<PelanggaranRecord[]>([]);
@@ -43,6 +47,12 @@ export default function KelolaSiswaPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [todayDate] = useState<string>(getTodayDate());
+
+  // Form State
+  const [formNama, setFormNama] = useState("");
+  const [formKelas, setFormKelas] = useState("");
+  const addSiswaRef = useRef<HTMLInputElement | null>(null);
+
   const isClientReady = todayDate !== "";
 
   const kelasList = useMemo(() => {
@@ -128,6 +138,40 @@ export default function KelolaSiswaPage() {
       showNotif("Gagal memuat data terbaru");
     }
   }, [showNotif]);
+
+  const handleAddSiswa = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (siswaData.length >= 999) {
+      showNotif("Maksimal 999 siswa tercapai!");
+      return;
+    }
+    const nama = formNama.trim();
+    const kelas = formKelas.trim().toUpperCase();
+    if (!nama || !kelas) return;
+
+    const barcodeId = generateBarcodeId();
+
+    const { error } = await supabase.from("records").insert({
+      id: Date.now().toString(),
+      type: "siswa",
+      nama,
+      kelas,
+      poin: 0,
+      kehadiran: 0,
+      dibuat: new Date().toISOString(),
+      barcode_id: barcodeId,
+      absen_hari_ini: null,
+    });
+
+    if (!error) {
+      setFormNama("");
+      setFormKelas("");
+      showNotif(`${nama} (${kelas}) berhasil ditambahkan!`);
+      refreshData();
+    } else {
+      showNotif(`Gagal menambahkan siswa: ${error.message}`);
+    }
+  };
 
   const handleUpdateSiswa = useCallback(
     async (siswa: SiswaRecord, updates: Partial<SiswaRecord>) => {
@@ -231,299 +275,299 @@ export default function KelolaSiswaPage() {
   };
 
   return (
-    <div className="min-h-full w-full">
-      <div className="gradient-bg min-h-full">
-        <div
-          className="admin-app fade-in"
-          style={{
-            ["--admin-primary"]: "#2563eb",
-            ["--admin-secondary"]: "#059669",
-            ["--admin-text"]: "#0f172a",
-          }}
-        >
-          <aside className="admin-sidebar">
-            <div className="brand">
-              <div className="brand__logo">📷</div>
-              <div className="brand__text">
-                <div className="brand__title">Panel Admin</div>
-                <div className="brand__sub">Absensi • Poin • Pelanggaran</div>
-              </div>
+    <div className="fade-in">
+      <div className="absensi-shell">
+        <div className="glass-card rounded-2xl p-4 md:p-6 mb-4 md:mb-6 premium-shadow absensi-hero">
+          <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+            <div>
+              <h1 className="font-black tracking-tight mb-2" style={{ fontSize: "2rem", color: "#0f172a" }}>
+                Kelola Siswa
+              </h1>
+              <p style={{ fontSize: "0.9rem", color: "#64748b" }}>
+                Aksi cepat: absensi, tambah poin, catat pelanggaran.
+              </p>
             </div>
+          </div>
+        </div>
 
-            <nav className="nav">
-              <Link className="nav__item" href="/">
-                <span className="nav__icon">📦</span>
-                <span>Data Master</span>
-              </Link>
-              <Link className="nav__item" href="/admin/absensi">
-                <span className="nav__icon">🧾</span>
-                <span>Operational Absensi</span>
-              </Link>
-              <Link className="nav__item nav__item--active" href="/admin/siswa">
-                <span className="nav__icon">👥</span>
-                <span>Kelola Siswa</span>
-              </Link>
-              <Link className="nav__item" href="/admin/pelanggaran">
-                <span className="nav__icon">⚠️</span>
-                <span>Pelanggaran</span>
-              </Link>
-              <Link className="nav__item" href="/admin/poin">
-                <span className="nav__icon">⭐</span>
-                <span>Poin</span>
-              </Link>
-            </nav>
-
-            <div className="sidebar__footer">
-              <div className="pill">
-                <span className="dot dot--ok" />
-                <span>Online</span>
-              </div>
-              <Link className="btn btn--ghost w-full" href="/">
-                Kembali ke Admin
-              </Link>
-            </div>
-          </aside>
-
-          <main className="admin-main">
-            <div className="absensi-shell">
-              <div className="glass-card rounded-2xl p-4 md:p-6 mb-4 md:mb-6 premium-shadow absensi-hero">
-                <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-                  <div>
-                    <h1 className="font-black tracking-tight mb-2" style={{ fontSize: "2rem", color: "#0f172a" }}>
-                      Kelola Siswa
-                    </h1>
-                    <p style={{ fontSize: "0.9rem", color: "#64748b" }}>
-                      Aksi cepat: absensi, tambah poin, catat pelanggaran.
-                    </p>
+              {loadError ? (
+                <div className="glass-card rounded-2xl p-4 md:p-6 mb-4 md:mb-6 premium-shadow">
+                  <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+                    <div>
+                      <p className="font-semibold" style={{ color: "#0f172a" }}>
+                        Perhatian: {loadError}
+                      </p>
+                      <p style={{ color: "#64748b", fontSize: "0.85rem" }}>
+                        Coba muat ulang setelah memastikan env Supabase benar.
+                      </p>
+                    </div>
+                    <button className="btn btn--primary" onClick={() => refreshData()}>
+                      Muat Ulang
+                    </button>
                   </div>
-                  <Link className="btn btn--ghost" href="/">
-                    Kembali ke Admin
-                  </Link>
                 </div>
-              </div>
+              ) : null}
 
-          {loadError ? (
-            <div className="glass-card rounded-2xl p-4 md:p-6 mb-4 md:mb-6 premium-shadow">
-              <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-                <div>
-                  <p className="font-semibold" style={{ color: "#0f172a" }}>
-                    Perhatian: {loadError}
-                  </p>
-                  <p style={{ color: "#64748b", fontSize: "0.85rem" }}>
-                    Coba muat ulang setelah memastikan env Supabase benar.
-                  </p>
+              <article className="card">
+                <div className="card__head">
+                  <div>
+                    <h2 className="card__title">Tambah Siswa Baru</h2>
+                    <p className="card__desc">Input siswa ke data master dengan cepat.</p>
+                  </div>
+                  <span className="badge badge--blue">Data Master</span>
                 </div>
-                <button className="btn btn--primary" onClick={() => refreshData()}>
-                  Muat Ulang
-                </button>
-              </div>
-            </div>
-          ) : null}
+
+                <form className="form" onSubmit={handleAddSiswa}>
+                  <div className="field">
+                    <label className="label" htmlFor="nama">
+                      Nama Siswa
+                    </label>
+                    <input
+                      className="input"
+                      id="nama"
+                      name="nama"
+                      placeholder="Contoh: Budi Santoso"
+                      value={formNama}
+                      ref={addSiswaRef}
+                      onChange={(e) => setFormNama(e.target.value)}
+                      required
+                    />
+                  </div>
+
+                  <div className="field">
+                    <label className="label" htmlFor="kelas">
+                      Kelas
+                    </label>
+                    <input
+                      className="input"
+                      id="kelas"
+                      name="kelas"
+                      placeholder="Contoh: X A"
+                      value={formKelas}
+                      onChange={(e) => setFormKelas(e.target.value)}
+                      required
+                    />
+                  </div>
+
+                  <div className="actions">
+                    <button className="btn btn--primary" type="submit">
+                      Simpan Siswa
+                    </button>
+                    <button
+                      className="btn btn--ghost"
+                      type="reset"
+                      onClick={() => {
+                        setFormNama("");
+                        setFormKelas("");
+                      }}
+                    >
+                      Reset
+                    </button>
+                  </div>
+                </form>
+              </article>
 
               <article className="card card--full">
-            <div className="card__head">
-              <div>
-                <h2 className="card__title">Kelola Siswa</h2>
-                <p className="card__desc">Gunakan filter kelas untuk mempercepat pencarian.</p>
-              </div>
-              <div className="segmented" role="tablist" aria-label="Filter kelas">
-                <button
-                  className={`segmented__btn ${selectedKelas === "all" ? "is-active" : ""}`}
-                  type="button"
-                  onClick={() => setSelectedKelas("all")}
-                >
-                  Semua ({siswaData.length})
-                </button>
-                {kelasList.map((kelas) => {
-                  const count = siswaData.filter((s) => s.kelas === kelas).length;
-                  return (
+                <div className="card__head">
+                  <div>
+                    <h2 className="card__title">Daftar Siswa</h2>
+                    <p className="card__desc">Gunakan filter kelas untuk mempercepat pencarian.</p>
+                  </div>
+                  <div className="segmented" role="tablist" aria-label="Filter kelas">
                     <button
-                      key={kelas}
-                      className={`segmented__btn ${selectedKelas === kelas ? "is-active" : ""}`}
+                      className={`segmented__btn ${selectedKelas === "all" ? "is-active" : ""}`}
                       type="button"
-                      onClick={() => setSelectedKelas(kelas)}
+                      onClick={() => setSelectedKelas("all")}
                     >
-                      {kelas} ({count})
+                      Semua ({siswaData.length})
                     </button>
-                  );
-                })}
-              </div>
-            </div>
-
-            <div className="table-wrap">
-              <table className="table">
-                <thead>
-                  <tr>
-                    <th>Nama</th>
-                    <th>Kelas</th>
-                    <th>Saldo Poin</th>
-                    <th>Status</th>
-                    <th className="th-right">Aksi</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {isLoading ? (
-                    <tr>
-                      <td colSpan={5} className="table-empty">Memuat data siswa...</td>
-                    </tr>
-                  ) : filteredSiswa.length === 0 ? (
-                    <tr>
-                      <td colSpan={5} className="table-empty">Belum ada siswa.</td>
-                    </tr>
-                  ) : (
-                    filteredSiswa.map((siswa) => {
-                      const sudahAbsen = isClientReady && siswa.absen_hari_ini === todayDate;
-                      const statusKnown = isClientReady;
-                      const statusLabel = !statusKnown
-                        ? "Memuat..."
-                        : sudahAbsen
-                          ? "Hadir Hari Ini"
-                          : "Belum Absen";
-                      const statusVariant = !statusKnown
-                        ? "warn"
-                        : sudahAbsen
-                          ? "ok"
-                          : "warn";
-                      const pointClass = siswa.poin > 0 ? "chip--green" : siswa.poin < 0 ? "chip--red" : "chip--muted";
+                    {kelasList.map((kelas) => {
+                      const count = siswaData.filter((s) => s.kelas === kelas).length;
                       return (
-                        <Fragment key={siswa.id}>
-                          <tr>
-                            <td>
-                              <input
-                                className="table-input"
-                                value={editingNama[siswa.id] ?? siswa.nama}
-                                onChange={(e) =>
-                                  setEditingNama((prev) => ({
-                                    ...prev,
-                                    [siswa.id]: e.target.value,
-                                  }))
-                                }
-                                onBlur={() => handleEditNama(siswa)}
-                                onKeyDown={(e) => {
-                                  if (e.key === "Enter") {
-                                    e.preventDefault();
-                                    (e.currentTarget as HTMLInputElement).blur();
-                                  }
-                                }}
-                              />
-                              <div className="list__meta">{siswa.barcode_id}</div>
-                            </td>
-                            <td>{siswa.kelas || "-"}</td>
-                            <td>
-                              <span className={`chip ${pointClass}`}>{siswa.poin}</span>
-                            </td>
-                            <td>
-                              <span className="pill">
-                                <span className={`dot dot--${statusVariant}`} />
-                                {statusLabel}
-                              </span>
-                            </td>
-                            <td className="td-right">
-                              <button
-                                className="btn btn--ghost btn--sm"
-                                type="button"
-                                onClick={() => processAbsensi(siswa.barcode_id)}
-                              >
-                                Absensi
-                              </button>
-                              <button
-                                className="btn btn--primary btn--sm"
-                                type="button"
-                                onClick={() => handlePlusPoin(siswa)}
-                              >
-                                + Poin
-                              </button>
-                              <button
-                                className="btn btn--danger btn--sm"
-                                type="button"
-                                onClick={() => {
-                                  setConfirmDeleteIds((prev) => ({
-                                    ...prev,
-                                    [`panel-${siswa.id}`]: !prev[`panel-${siswa.id}`],
-                                  }));
-                                }}
-                              >
-                                Pelanggaran
-                              </button>
-                              <button
-                                className="icon-btn"
-                                title="Hapus"
-                                type="button"
-                                onClick={() => {
-                                  if (confirmDeleteIds[siswa.id]) {
-                                    handleDeleteSiswa(siswa);
-                                    setConfirmDeleteIds((prev) => ({ ...prev, [siswa.id]: false }));
-                                  } else {
-                                    setConfirmDeleteIds((prev) => ({ ...prev, [siswa.id]: true }));
-                                    setTimeout(() => {
-                                      setConfirmDeleteIds((prev) => ({ ...prev, [siswa.id]: false }));
-                                    }, 3000);
-                                  }
-                                }}
-                              >
-                                {confirmDeleteIds[siswa.id] ? "Yakin?" : "Hapus"}
-                              </button>
-                            </td>
-                          </tr>
-                          {confirmDeleteIds[`panel-${siswa.id}`] ? (
-                            <tr className="table-panel">
-                              <td colSpan={5}>
-                                <div className="violation-panel">
-                                  <div className="panel-title">Pilih jenis pelanggaran</div>
-                                  {pelanggaranData.length === 0 ? (
-                                    <div className="muted">Belum ada pelanggaran. Tambahkan pelanggaran terlebih dahulu.</div>
-                                  ) : (
-                                    <div className="panel-grid">
-                                      {pelanggaranData.map((pelanggaran) => (
-                                        <button
-                                          key={pelanggaran.id}
-                                          className="panel-item"
-                                          type="button"
-                                          onClick={() => {
-                                            handlePelanggaran(
-                                              siswa,
-                                              pelanggaran.poin_pelanggaran,
-                                              pelanggaran.nama_pelanggaran,
-                                            );
-                                            setConfirmDeleteIds((prev) => ({
-                                              ...prev,
-                                              [`panel-${siswa.id}`]: false,
-                                            }));
-                                          }}
-                                        >
-                                          <span className="panel-points">{pelanggaran.poin_pelanggaran}</span>
-                                          <span>{pelanggaran.nama_pelanggaran}</span>
-                                        </button>
-                                      ))}
-                                    </div>
-                                  )}
+                        <button
+                          key={kelas}
+                          className={`segmented__btn ${selectedKelas === kelas ? "is-active" : ""}`}
+                          type="button"
+                          onClick={() => setSelectedKelas(kelas)}
+                        >
+                          {kelas} ({count})
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                <div className="table-wrap">
+                  <table className="table">
+                    <thead>
+                      <tr>
+                        <th>Nama</th>
+                        <th>Kelas</th>
+                        <th>Saldo Poin</th>
+                        <th>Status</th>
+                        <th className="th-right">Aksi</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {isLoading ? (
+                        <tr>
+                          <td colSpan={5} className="table-empty">Memuat data siswa...</td>
+                        </tr>
+                      ) : filteredSiswa.length === 0 ? (
+                        <tr>
+                          <td colSpan={5} className="table-empty">Belum ada siswa.</td>
+                        </tr>
+                      ) : (
+                        filteredSiswa.map((siswa) => {
+                          const sudahAbsen = isClientReady && siswa.absen_hari_ini === todayDate;
+                          const statusKnown = isClientReady;
+                          const statusLabel = !statusKnown
+                            ? "Memuat..."
+                            : sudahAbsen
+                              ? "Hadir Hari Ini"
+                              : "Belum Absen";
+                          const statusVariant = !statusKnown
+                            ? "warn"
+                            : sudahAbsen
+                              ? "ok"
+                              : "warn";
+                          const pointClass = siswa.poin > 0 ? "chip--green" : siswa.poin < 0 ? "chip--red" : "chip--muted";
+                          return (
+                            <Fragment key={siswa.id}>
+                              <tr>
+                                <td>
+                                  <input
+                                    className="table-input"
+                                    value={editingNama[siswa.id] ?? siswa.nama}
+                                    onChange={(e) =>
+                                      setEditingNama((prev) => ({
+                                        ...prev,
+                                        [siswa.id]: e.target.value,
+                                      }))
+                                    }
+                                    onBlur={() => handleEditNama(siswa)}
+                                    onKeyDown={(e) => {
+                                      if (e.key === "Enter") {
+                                        e.preventDefault();
+                                        (e.currentTarget as HTMLInputElement).blur();
+                                      }
+                                    }}
+                                  />
+                                  <div className="list__meta">{siswa.barcode_id}</div>
+                                </td>
+                                <td>{siswa.kelas || "-"}</td>
+                                <td>
+                                  <span className={`chip ${pointClass}`}>{siswa.poin}</span>
+                                </td>
+                                <td>
+                                  <span className="pill">
+                                    <span className={`dot dot--${statusVariant}`} />
+                                    {statusLabel}
+                                  </span>
+                                </td>
+                                <td className="td-right">
                                   <button
                                     className="btn btn--ghost btn--sm"
                                     type="button"
-                                    onClick={() =>
+                                    onClick={() => processAbsensi(siswa.barcode_id)}
+                                  >
+                                    Absensi
+                                  </button>
+                                  <button
+                                    className="btn btn--primary btn--sm"
+                                    type="button"
+                                    onClick={() => handlePlusPoin(siswa)}
+                                  >
+                                    + Poin
+                                  </button>
+                                  <button
+                                    className="btn btn--danger btn--sm"
+                                    type="button"
+                                    onClick={() => {
                                       setConfirmDeleteIds((prev) => ({
                                         ...prev,
-                                        [`panel-${siswa.id}`]: false,
-                                      }))
-                                    }
+                                        [`panel-${siswa.id}`]: !prev[`panel-${siswa.id}`],
+                                      }));
+                                    }}
                                   >
-                                    Tutup Panel
+                                    Pelanggaran
                                   </button>
-                                </div>
-                              </td>
-                            </tr>
-                          ) : null}
-                        </Fragment>
-                      );
-                    })
-                  )}
-                </tbody>
-              </table>
-            </div>
+                                  <button
+                                    className="icon-btn"
+                                    title="Hapus"
+                                    type="button"
+                                    onClick={() => {
+                                      if (confirmDeleteIds[siswa.id]) {
+                                        handleDeleteSiswa(siswa);
+                                        setConfirmDeleteIds((prev) => ({ ...prev, [siswa.id]: false }));
+                                      } else {
+                                        setConfirmDeleteIds((prev) => ({ ...prev, [siswa.id]: true }));
+                                        setTimeout(() => {
+                                          setConfirmDeleteIds((prev) => ({ ...prev, [siswa.id]: false }));
+                                        }, 3000);
+                                      }
+                                    }}
+                                  >
+                                    {confirmDeleteIds[siswa.id] ? "Yakin?" : "Hapus"}
+                                  </button>
+                                </td>
+                              </tr>
+                              {confirmDeleteIds[`panel-${siswa.id}`] ? (
+                                <tr className="table-panel">
+                                  <td colSpan={5}>
+                                    <div className="violation-panel">
+                                      <div className="panel-title">Pilih jenis pelanggaran</div>
+                                      {pelanggaranData.length === 0 ? (
+                                        <div className="muted">Belum ada pelanggaran. Tambahkan pelanggaran terlebih dahulu.</div>
+                                      ) : (
+                                        <div className="panel-grid">
+                                          {pelanggaranData.map((pelanggaran) => (
+                                            <button
+                                              key={pelanggaran.id}
+                                              className="panel-item"
+                                              type="button"
+                                              onClick={() => {
+                                                handlePelanggaran(
+                                                  siswa,
+                                                  pelanggaran.poin_pelanggaran,
+                                                  pelanggaran.nama_pelanggaran,
+                                                );
+                                                setConfirmDeleteIds((prev) => ({
+                                                  ...prev,
+                                                  [`panel-${siswa.id}`]: false,
+                                                }));
+                                              }}
+                                            >
+                                              <span className="panel-points">{pelanggaran.poin_pelanggaran}</span>
+                                              <span>{pelanggaran.nama_pelanggaran}</span>
+                                            </button>
+                                          ))}
+                                        </div>
+                                      )}
+                                      <button
+                                        className="btn btn--ghost btn--sm"
+                                        type="button"
+                                        onClick={() =>
+                                          setConfirmDeleteIds((prev) => ({
+                                            ...prev,
+                                            [`panel-${siswa.id}`]: false,
+                                          }))
+                                        }
+                                      >
+                                        Tutup Panel
+                                      </button>
+                                    </div>
+                                  </td>
+                                </tr>
+                              ) : null}
+                            </Fragment>
+                          );
+                        })
+                      )}
+                    </tbody>
+                  </table>
+                </div>
               </article>
-            </div>
-          </main>
-        </div>
       </div>
 
       {notif ? (
