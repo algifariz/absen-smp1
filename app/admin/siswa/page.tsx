@@ -435,37 +435,39 @@ export default function KelolaSiswaPage() {
                           return (
                             <Fragment key={siswa.id}>
                               <tr>
-                                <td>
-                                  <input
-                                    className="table-input"
-                                    value={editingNama[siswa.id] ?? siswa.nama}
-                                    onChange={(e) =>
-                                      setEditingNama((prev) => ({
-                                        ...prev,
-                                        [siswa.id]: e.target.value,
-                                      }))
-                                    }
-                                    onBlur={() => handleEditNama(siswa)}
-                                    onKeyDown={(e) => {
-                                      if (e.key === "Enter") {
-                                        e.preventDefault();
-                                        (e.currentTarget as HTMLInputElement).blur();
+                                <td data-label="Nama">
+                                  <div className="w-full text-right">
+                                    <input
+                                      className="table-input text-right"
+                                      value={editingNama[siswa.id] ?? siswa.nama}
+                                      onChange={(e) =>
+                                        setEditingNama((prev) => ({
+                                          ...prev,
+                                          [siswa.id]: e.target.value,
+                                        }))
                                       }
-                                    }}
-                                  />
-                                  <div className="list__meta">{siswa.barcode_id}</div>
+                                      onBlur={() => handleEditNama(siswa)}
+                                      onKeyDown={(e) => {
+                                        if (e.key === "Enter") {
+                                          e.preventDefault();
+                                          (e.currentTarget as HTMLInputElement).blur();
+                                        }
+                                      }}
+                                    />
+                                    <div className="list__meta">{siswa.barcode_id}</div>
+                                  </div>
                                 </td>
-                                <td>{siswa.kelas || "-"}</td>
-                                <td>
+                                <td data-label="Kelas">{siswa.kelas || "-"}</td>
+                                <td data-label="Saldo Poin">
                                   <span className={`chip ${pointClass}`}>{siswa.poin}</span>
                                 </td>
-                                <td>
+                                <td data-label="Status">
                                   <span className="pill">
                                     <span className={`dot dot--${statusVariant}`} />
                                     {statusLabel}
                                   </span>
                                 </td>
-                                <td className="td-right">
+                                <td className="td-right" data-label="Aksi">
                                   <button
                                     className="btn btn--ghost btn--sm"
                                     type="button"
