@@ -356,7 +356,7 @@ export default function Home() {
                   </div>
                   <Link
                     href="/admin/siswa"
-                    className="luxury-button px-5 py-2.5 md:px-6 md:py-3 rounded-xl font-semibold w-full md:w-auto inline-flex items-center justify-center gap-2"
+                    className="luxury-button admin-cta inline-flex items-center justify-center gap-2"
                     style={{ background: primaryColor, color: "white", fontSize: `${baseSize * 0.9}px` }}
                   >
                       <span>{"\u{1F6E0}\u{FE0F}"}</span>
@@ -466,45 +466,42 @@ export default function Home() {
                     </p>
                   </div>
                 ) : (
-                  filteredSiswa.map((siswa) => (
+                  filteredSiswa.map((siswa, index) => (
                     <div
                       key={siswa.id}
-                      className="glass-card rounded-2xl p-4 md:p-6 premium-shadow cursor-pointer hover:scale-[1.02] transition-transform"
+                      className="glass-card leaderboard-card premium-shadow cursor-pointer hover:scale-[1.02] transition-transform"
                       onClick={() => {
                         setBarcodeTarget(siswa);
                         setBarcodeModalOpen(true);
                       }}
                     >
-                      <div className="flex flex-col gap-4">
-                        <div className="flex justify-between items-start">
-                          <div>
-                            <div className="font-semibold mb-1" style={{ fontSize: `${baseSize * 1.1}px`, color: textColor }}>
-                              {siswa.nama}
-                            </div>
-                            <div className="flex items-center gap-2 flex-wrap">
-                              {siswa.kelas ? (
-                                <div className="px-2.5 py-1 rounded-lg" style={{ background: "#eff6ff", border: "1px solid #bfdbfe" }}>
-                                  <span style={{ fontSize: `${baseSize * 0.75}px`, color: "#2563eb", fontWeight: 600 }}>
-                                    {siswa.kelas}
-                                  </span>
-                                </div>
-                              ) : null}
-                            </div>
-                          </div>
-                          <div
-                            className="px-3 py-1.5 rounded-lg font-bold"
-                            style={{ background: primaryColor, color: "white", fontSize: `${baseSize}px` }}
-                          >
-                            {siswa.poin} <span style={{ fontSize: "0.8em" }}>{"\u{2B50}"}</span>
+                      <div className="leaderboard-row">
+                        <div className="leaderboard-rank">
+                          <div className="leaderboard-medal" data-rank={index + 1}>
+                            {index + 1}
                           </div>
                         </div>
-                        <div className="flex items-center justify-between border-t border-slate-100 pt-3 mt-1">
-                           <div className="text-slate-400 text-xs uppercase tracking-wider font-semibold">Kehadiran</div>
-                           <div className="px-2.5 py-1 rounded-lg" style={{ background: "#f0fdf4", border: "1px solid #bbf7d0" }}>
-                                <span style={{ fontSize: `${baseSize * 0.75}px`, color: "#16a34a", fontWeight: 600 }}>
-                                  {"\u{2705}"} {siswa.kehadiran}
-                                </span>
-                           </div>
+                        <div className="leaderboard-info">
+                          <div className="leaderboard-name" style={{ fontSize: `${baseSize * 1.05}px`, color: textColor }}>
+                            {siswa.nama}
+                          </div>
+                          <div className="leaderboard-tags">
+                            {siswa.kelas ? (
+                              <span className="leaderboard-tag leaderboard-tag--kelas">
+                                {"\u{1F3EB}"} {siswa.kelas}
+                              </span>
+                            ) : null}
+                            <span className="leaderboard-tag leaderboard-tag--hadir">
+                              {"\u{2705}"} {siswa.kehadiran}
+                            </span>
+                          </div>
+                        </div>
+                        <div
+                          className="leaderboard-score"
+                          style={{ background: primaryColor }}
+                        >
+                          <span className="leaderboard-score__value">{siswa.poin}</span>
+                          <span className="leaderboard-score__icon">{"\u{2B50}"}</span>
                         </div>
                       </div>
                     </div>

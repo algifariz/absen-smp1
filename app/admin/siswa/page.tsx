@@ -46,6 +46,7 @@ export default function KelolaSiswaPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [todayDate] = useState<string>(getTodayDate());
+  const [addModalOpen, setAddModalOpen] = useState(false);
 
   // Form State
   const [formNama, setFormNama] = useState("");
@@ -109,6 +110,14 @@ export default function KelolaSiswaPage() {
     return () => clearTimeout(timer);
   }, [notif]);
 
+  useEffect(() => {
+    if (!addModalOpen) return;
+    const timer = setTimeout(() => {
+      addSiswaRef.current?.focus();
+    }, 50);
+    return () => clearTimeout(timer);
+  }, [addModalOpen]);
+
   const showNotif = useCallback((message: string) => {
     setNotif(message);
   }, []);
@@ -165,6 +174,7 @@ export default function KelolaSiswaPage() {
     if (!error) {
       setFormNama("");
       setFormKelas("");
+      setAddModalOpen(false);
       showNotif(`${nama} (${kelas}) berhasil ditambahkan!`);
       refreshData();
     } else {
@@ -307,71 +317,15 @@ export default function KelolaSiswaPage() {
                 </div>
               ) : null}
 
-              <article className="card">
-                <div className="card__head">
-                  <div>
-                    <h2 className="card__title">Tambah Siswa Baru</h2>
-                    <p className="card__desc">Input siswa ke data master dengan cepat.</p>
-                  </div>
-                  <span className="badge badge--blue">Data Master</span>
-                </div>
-
-                <form className="form" onSubmit={handleAddSiswa}>
-                  <div className="field">
-                    <label className="label" htmlFor="nama">
-                      Nama Siswa
-                    </label>
-                    <input
-                      className="input"
-                      id="nama"
-                      name="nama"
-                      placeholder="Contoh: Budi Santoso"
-                      value={formNama}
-                      ref={addSiswaRef}
-                      onChange={(e) => setFormNama(e.target.value)}
-                      required
-                    />
-                  </div>
-
-                  <div className="field">
-                    <label className="label" htmlFor="kelas">
-                      Kelas
-                    </label>
-                    <input
-                      className="input"
-                      id="kelas"
-                      name="kelas"
-                      placeholder="Contoh: X A"
-                      value={formKelas}
-                      onChange={(e) => setFormKelas(e.target.value)}
-                      required
-                    />
-                  </div>
-
-                  <div className="actions">
-                    <button className="btn btn--primary" type="submit">
-                      Simpan Siswa
-                    </button>
-                    <button
-                      className="btn btn--ghost"
-                      type="reset"
-                      onClick={() => {
-                        setFormNama("");
-                        setFormKelas("");
-                      }}
-                    >
-                      Reset
-                    </button>
-                  </div>
-                </form>
-              </article>
-
               <article className="card card--full">
                 <div className="card__head">
                   <div>
                     <h2 className="card__title">Daftar Siswa</h2>
                     <p className="card__desc">Gunakan filter kelas untuk mempercepat pencarian.</p>
                   </div>
+                  <button className="btn btn--primary" type="button" onClick={() => setAddModalOpen(true)}>
+                    + Tambah Siswa
+                  </button>
                   <div className="segmented" role="tablist" aria-label="Filter kelas">
                     <button
                       className={`segmented__btn ${selectedKelas === "all" ? "is-active" : ""}`}
@@ -570,6 +524,72 @@ export default function KelolaSiswaPage() {
                 </div>
               </article>
       </div>
+      <button className="fab-add" type="button" onClick={() => setAddModalOpen(true)} aria-label="Tambah siswa">
+        +
+      </button>
+      {addModalOpen ? (
+        <div className="modal-overlay" onClick={() => setAddModalOpen(false)}>
+          <div className="glass-card modal-card" onClick={(e) => e.stopPropagation()}>
+            <div className="card__head">
+              <div>
+                <h2 className="card__title">Tambah Siswa Baru</h2>
+                <p className="card__desc">Input siswa ke data master dengan cepat.</p>
+              </div>
+              <span className="badge badge--blue">Data Master</span>
+            </div>
+
+            <form className="form" onSubmit={handleAddSiswa}>
+              <div className="field">
+                <label className="label" htmlFor="nama">
+                  Nama Siswa
+                </label>
+                <input
+                  className="input"
+                  id="nama"
+                  name="nama"
+                  placeholder="Contoh: Budi Santoso"
+                  value={formNama}
+                  ref={addSiswaRef}
+                  onChange={(e) => setFormNama(e.target.value)}
+                  required
+                />
+              </div>
+
+              <div className="field">
+                <label className="label" htmlFor="kelas">
+                  Kelas
+                </label>
+                <input
+                  className="input"
+                  id="kelas"
+                  name="kelas"
+                  placeholder="Contoh: X A"
+                  value={formKelas}
+                  onChange={(e) => setFormKelas(e.target.value)}
+                  required
+                />
+              </div>
+
+              <div className="actions">
+                <button className="btn btn--primary" type="submit">
+                  Simpan Siswa
+                </button>
+                <button
+                  className="btn btn--ghost"
+                  type="button"
+                  onClick={() => {
+                    setFormNama("");
+                    setFormKelas("");
+                    setAddModalOpen(false);
+                  }}
+                >
+                  Batal
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      ) : null}
         {notif ? (
           <div
             style={{
