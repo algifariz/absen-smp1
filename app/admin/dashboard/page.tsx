@@ -7,6 +7,7 @@ type AbsensiLog = {
   id: string;
   tanggal: string;
   kelas: string | null;
+  status_hari_ini?: string | null;
 };
 
 type PelanggaranLog = {
@@ -94,6 +95,9 @@ export default function DashboardPage() {
   const [pelanggaranSeries, setPelanggaranSeries] = useState<DayPoint[]>([]);
   const [topSiswa, setTopSiswa] = useState<SiswaRow[]>([]);
   const [hadirHariIni, setHadirHariIni] = useState(0);
+  const [izinHariIni, setIzinHariIni] = useState(0);
+  const [sakitHariIni, setSakitHariIni] = useState(0);
+  const [alfaHariIni, setAlfaHariIni] = useState(0);
   const [topKelasAbsensi, setTopKelasAbsensi] = useState<{ kelas: string; count: number }[]>([]);
   const [topKelasPelanggaran, setTopKelasPelanggaran] = useState<{ kelas: string; count: number }[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -106,19 +110,32 @@ export default function DashboardPage() {
     setIsLoading(true);
     setLoadError(null);
     try {
-      const { data: absensiLogs, error: absensiError } = await supabase
+      let absensiLogs: AbsensiLog[] = [];
+      let pelanggaranLogs: PelanggaranLog[] = [];
+      let absensiLogOk = true;
+      let pelanggaranLogOk = true;
+
+      const absensiResp = await supabase
         .from("absensi_log")
-        .select("id,tanggal,kelas")
+        .select("id,tanggal,kelas,status_hari_ini")
         .gte("tanggal", dates[0])
         .lte("tanggal", dates[dates.length - 1]);
-      if (absensiError) throw absensiError;
+      if (absensiResp.error) {
+        absensiLogOk = false;
+      } else {
+        absensiLogs = (absensiResp.data as AbsensiLog[]) || [];
+      }
 
-      const { data: pelanggaranLogs, error: pelanggaranError } = await supabase
+      const pelanggaranResp = await supabase
         .from("pelanggaran_log")
         .select("id,tanggal,kelas")
         .gte("tanggal", dates[0])
         .lte("tanggal", dates[dates.length - 1]);
-      if (pelanggaranError) throw pelanggaranError;
+      if (pelanggaranResp.error) {
+        pelanggaranLogOk = false;
+      } else {
+        pelanggaranLogs = (pelanggaranResp.data as PelanggaranLog[]) || [];
+      }
 
       const { data: siswaRows, error: siswaError } = await supabase
         .from("records")
@@ -128,16 +145,16 @@ export default function DashboardPage() {
         .limit(5);
       if (siswaError) throw siswaError;
 
-      const absensiSeriesData = buildSeries(dates, (absensiLogs as AbsensiLog[]) || []);
-      const pelanggaranSeriesData = buildSeries(dates, (pelanggaranLogs as PelanggaranLog[]) || []);
+      const absensiSeriesData = buildSeries(dates, absensiLogs);
+      const pelanggaranSeriesData = buildSeries(dates, pelanggaranLogs);
       const kelasAbsensiMap = new Map<string, number>();
       const kelasPelanggaranMap = new Map<string, number>();
 
-      (absensiLogs as AbsensiLog[] | null)?.forEach((row) => {
+      absensiLogs.forEach((row) => {
         if (!row.kelas) return;
         kelasAbsensiMap.set(row.kelas, (kelasAbsensiMap.get(row.kelas) || 0) + 1);
       });
-      (pelanggaranLogs as PelanggaranLog[] | null)?.forEach((row) => {
+      pelanggaranLogs.forEach((row) => {
         if (!row.kelas) return;
         kelasPelanggaranMap.set(row.kelas, (kelasPelanggaranMap.get(row.kelas) || 0) + 1);
       });
@@ -145,9 +162,26 @@ export default function DashboardPage() {
       setAbsensiSeries(absensiSeriesData);
       setPelanggaranSeries(pelanggaranSeriesData);
       setTopSiswa((siswaRows as SiswaRow[]) || []);
-      setHadirHariIni(
-        (absensiLogs as AbsensiLog[] | null)?.filter((row) => row.tanggal === today).length || 0,
-      );
+      if (absensiLogOk) {
+        const todayLogs = absensiLogs.filter((row) => row.tanggal === today);
+        setHadirHariIni(todayLogs.filter((row) => row.status_hari_ini === "hadir").length);
+        setIzinHariIni(todayLogs.filter((row) => row.status_hari_ini === "izin").length);
+        setSakitHariIni(todayLogs.filter((row) => row.status_hari_ini === "sakit").length);
+        setAlfaHariIni(todayLogs.filter((row) => row.status_hari_ini === "alfa").length);
+      } else {
+        const { data: siswaToday, error: siswaTodayError } = await supabase
+          .from("records")
+          .select("status_hari_ini,absen_hari_ini")
+          .eq("type", "siswa")
+          .eq("absen_hari_ini", today);
+        if (!siswaTodayError) {
+          const rows = (siswaToday as { status_hari_ini: string | null }[]) || [];
+          setHadirHariIni(rows.filter((row) => row.status_hari_ini === "hadir").length);
+          setIzinHariIni(rows.filter((row) => row.status_hari_ini === "izin").length);
+          setSakitHariIni(rows.filter((row) => row.status_hari_ini === "sakit").length);
+          setAlfaHariIni(rows.filter((row) => row.status_hari_ini === "alfa").length);
+        }
+      }
       setTopKelasAbsensi(
         Array.from(kelasAbsensiMap.entries())
           .map(([kelas, count]) => ({ kelas, count }))
@@ -160,12 +194,21 @@ export default function DashboardPage() {
           .sort((a, b) => b.count - a.count)
           .slice(0, 4),
       );
+
+      if (!absensiLogOk || !pelanggaranLogOk) {
+        setLoadError("Sebagian data log belum tersedia. Silakan periksa tabel log Supabase.");
+      } else {
+        setLoadError(null);
+      }
     } catch {
       setLoadError("Gagal memuat dashboard. Pastikan tabel log tersedia.");
       setAbsensiSeries([]);
       setPelanggaranSeries([]);
       setTopSiswa([]);
       setHadirHariIni(0);
+      setIzinHariIni(0);
+      setSakitHariIni(0);
+      setAlfaHariIni(0);
       setTopKelasAbsensi([]);
       setTopKelasPelanggaran([]);
     } finally {
@@ -219,6 +262,36 @@ export default function DashboardPage() {
             </div>
           </div>
           <div className="dashboard-metric">{hadirHariIni}</div>
+        </div>
+
+        <div className="card dashboard-card dashboard-card--metric">
+          <div className="card__head">
+            <div>
+              <h3 className="card__title">Izin Hari Ini</h3>
+              <p className="card__desc">Total izin hari ini</p>
+            </div>
+          </div>
+          <div className="dashboard-metric">{izinHariIni}</div>
+        </div>
+
+        <div className="card dashboard-card dashboard-card--metric">
+          <div className="card__head">
+            <div>
+              <h3 className="card__title">Sakit Hari Ini</h3>
+              <p className="card__desc">Total sakit hari ini</p>
+            </div>
+          </div>
+          <div className="dashboard-metric">{sakitHariIni}</div>
+        </div>
+
+        <div className="card dashboard-card dashboard-card--metric">
+          <div className="card__head">
+            <div>
+              <h3 className="card__title">Alfa Hari Ini</h3>
+              <p className="card__desc">Total alfa hari ini</p>
+            </div>
+          </div>
+          <div className="dashboard-metric">{alfaHariIni}</div>
         </div>
 
         <div className="card dashboard-card dashboard-card--metric">

@@ -9,6 +9,7 @@ type AbsensiLog = {
   nama: string;
   kelas: string;
   barcode_id: string;
+  status_hari_ini?: string | null;
   tanggal: string;
   created_at: string;
 };
@@ -20,6 +21,7 @@ type PelanggaranLog = {
   kelas: string;
   nama_pelanggaran: string;
   poin_pelanggaran: number;
+  status_hari_ini?: string | null;
   tanggal: string;
   created_at: string;
 };
@@ -88,24 +90,64 @@ export default function LaporanPage() {
     setIsLoading(true);
     setLoadError(null);
     try {
-      const { data: absensiRows, error: absensiError } = await supabase
+      let absensiRows: AbsensiLog[] = [];
+      let pelanggaranRows: PelanggaranLog[] = [];
+      let absensiOk = true;
+      let pelanggaranOk = true;
+
+      const absensiResp = await supabase
         .from("absensi_log")
         .select("*")
         .gte("tanggal", fromDate)
         .lte("tanggal", toDate)
         .order("tanggal", { ascending: false });
-      if (absensiError) throw absensiError;
+      if (absensiResp.error) {
+        absensiOk = false;
+      } else {
+        absensiRows = (absensiResp.data as AbsensiLog[]) || [];
+      }
 
-      const { data: pelanggaranRows, error: pelanggaranError } = await supabase
+      const pelanggaranResp = await supabase
         .from("pelanggaran_log")
         .select("*")
         .gte("tanggal", fromDate)
         .lte("tanggal", toDate)
         .order("tanggal", { ascending: false });
-      if (pelanggaranError) throw pelanggaranError;
+      if (pelanggaranResp.error) {
+        pelanggaranOk = false;
+      } else {
+        pelanggaranRows = (pelanggaranResp.data as PelanggaranLog[]) || [];
+      }
 
-      setAbsensiData((absensiRows as AbsensiLog[]) || []);
-      setPelanggaranData((pelanggaranRows as PelanggaranLog[]) || []);
+      const rowsWithStatus = (absensiRows || []).filter((row) => row.status_hari_ini);
+      const hasStatus = rowsWithStatus.length > 0;
+
+      if (!absensiOk || !hasStatus) {
+        const { data: siswaRows, error: siswaError } = await supabase
+          .from("records")
+          .select("id,nama,kelas,barcode_id,absen_hari_ini,status_hari_ini,created_at")
+          .eq("type", "siswa")
+          .gte("absen_hari_ini", fromDate)
+          .lte("absen_hari_ini", toDate);
+        if (!siswaError) {
+          absensiRows = ((siswaRows as Array<Record<string, string | null>>) || []).map((row) => ({
+            id: String(row.id),
+            siswa_id: String(row.id),
+            nama: String(row.nama || "-"),
+            kelas: String(row.kelas || "-"),
+            barcode_id: String(row.barcode_id || "-"),
+            status_hari_ini: row.status_hari_ini || "hadir",
+            tanggal: String(row.absen_hari_ini || ""),
+            created_at: String(row.created_at || new Date().toISOString()),
+          }));
+        }
+      }
+
+      setAbsensiData(absensiRows);
+      setPelanggaranData(pelanggaranRows);
+      if (!absensiOk || !pelanggaranOk) {
+        setLoadError("Sebagian data log belum tersedia. Silakan periksa tabel log Supabase.");
+      }
     } catch {
       setLoadError("Gagal memuat laporan. Pastikan tabel log tersedia.");
       setAbsensiData([]);
@@ -194,6 +236,45 @@ export default function LaporanPage() {
     );
   }, [pelanggaranData, search, selectedKelas]);
 
+  const statusSummary = useMemo(() => {
+    const summary = new Map<string, { nama: string; kelas: string; hadir: number; izin: number; sakit: number; alfa: number }>();
+    filteredAbsensi.forEach((row) => {
+      const key = row.siswa_id;
+      if (!summary.has(key)) {
+        summary.set(key, {
+          nama: row.nama,
+          kelas: row.kelas || "-",
+          hadir: 0,
+          izin: 0,
+          sakit: 0,
+          alfa: 0,
+        });
+      }
+      const item = summary.get(key)!;
+      const status = row.status_hari_ini || "hadir";
+      if (status === "izin") item.izin += 1;
+      else if (status === "sakit") item.sakit += 1;
+      else if (status === "alfa") item.alfa += 1;
+      else item.hadir += 1;
+    });
+    return Array.from(summary.values());
+  }, [filteredAbsensi]);
+
+  const siswaOptions = useMemo(() => {
+    const names = new Set<string>();
+    statusSummary.forEach((row) => {
+      names.add(row.nama);
+    });
+    return Array.from(names).sort();
+  }, [statusSummary]);
+
+  const [selectedSiswa, setSelectedSiswa] = useState<string>("all");
+
+  const filteredStatusSummary = useMemo(() => {
+    if (selectedSiswa === "all") return statusSummary;
+    return statusSummary.filter((row) => row.nama === selectedSiswa);
+  }, [statusSummary, selectedSiswa]);
+
   useEffect(() => {
     setPageAbsensi(1);
     setPagePelanggaran(1);
@@ -232,6 +313,7 @@ export default function LaporanPage() {
             nama: row.nama,
             kelas: row.kelas,
             barcode_id: row.barcode_id,
+            status: row.status_hari_ini || "-",
           }))
         : filteredPelanggaran.map((row) => ({
             tanggal: row.tanggal,
@@ -239,6 +321,7 @@ export default function LaporanPage() {
             nama: row.nama,
             kelas: row.kelas,
             pelanggaran: row.nama_pelanggaran,
+            status: row.status_hari_ini || "-",
             poin: row.poin_pelanggaran,
           }));
     const headers = Object.keys(rows[0] || {});
@@ -256,7 +339,7 @@ export default function LaporanPage() {
 
   return (
     <div className="absensi-shell fade-in">
-      <div className="glass-card rounded-2xl p-4 md:p-6 mb-4 md:mb-6 premium-shadow absensi-hero">
+      <div className="glass-card rounded-2xl p-5 md:p-6 mb-6 premium-shadow absensi-hero">
         <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
           <div>
             <h1 className="font-black tracking-tight mb-2" style={{ fontSize: "2rem", color: "#0f172a" }}>
@@ -269,7 +352,7 @@ export default function LaporanPage() {
         </div>
       </div>
 
-      <article className="card card--full">
+      <article className="card card--full p-5 md:p-6">
         <div className="card__head">
           <div>
             <h2 className="card__title">Filter Laporan</h2>
@@ -277,7 +360,7 @@ export default function LaporanPage() {
           </div>
         </div>
 
-        <div className="actions">
+        <div className="actions" style={{ gap: "12px" }}>
           <button className={`segmented__btn ${range === "minggu" ? "is-active" : ""}`} onClick={() => setRange("minggu")}>
             1 Minggu
           </button>
@@ -289,7 +372,7 @@ export default function LaporanPage() {
           </button>
         </div>
 
-        <div className="two-col">
+        <div className="two-col" style={{ gap: "12px" }}>
           <div className="field">
             <label className="label" htmlFor="fromDate">Dari</label>
             <input className="input" id="fromDate" type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)} />
@@ -327,7 +410,7 @@ export default function LaporanPage() {
           />
         </div>
 
-        <div className="actions">
+        <div className="actions" style={{ gap: "12px" }}>
           <button className="btn btn--primary" type="button" onClick={fetchData} disabled={isLoading}>
             {isLoading ? "Memuat..." : "Refresh"}
           </button>
@@ -339,19 +422,24 @@ export default function LaporanPage() {
         {loadError ? <div className="muted">{loadError}</div> : null}
       </article>
 
-      <div className="admin-grid">
-        <article className="card">
+      <div className="admin-grid" style={{ gap: "24px" }}>
+        <article className="card p-5 md:p-6">
           <div className="card__head">
             <div>
               <h3 className="card__title">Laporan Absensi</h3>
               <p className="card__desc">Data kehadiran siswa.</p>
             </div>
-            <button className="btn btn--primary btn--sm" type="button" onClick={() => handleDownload("absensi")}>
-              Download CSV
-            </button>
+            <div className="actions" style={{ gap: "12px" }}>
+              <button className="btn btn--primary btn--sm" type="button" onClick={() => handleDownload("absensi")}>
+                Download CSV
+              </button>
+              <button className="btn btn--danger btn--sm" type="button" aria-disabled="true" disabled>
+                Download PDF
+              </button>
+            </div>
           </div>
           <div className="table-wrap">
-            <table className="table">
+            <table className="table table-auto table-compact table-no-stack">
               <thead>
                 <tr>
                   <th>Tanggal</th>
@@ -359,16 +447,17 @@ export default function LaporanPage() {
                   <th>Nama</th>
                   <th>Kelas</th>
                   <th>Barcode</th>
+                  <th>Status</th>
                 </tr>
               </thead>
               <tbody>
                 {absensiPageData.length === 0 ? (
                   <tr>
-                    <td colSpan={5} className="table-empty">Tidak ada data.</td>
+                    <td colSpan={6} className="table-empty">Tidak ada data.</td>
                   </tr>
                 ) : (
                   absensiPageData.map((row) => (
-                    <tr key={row.id}>
+                    <tr key={row.id} className="hover:bg-gray-50">
                       <td data-label="Tanggal">{row.tanggal}</td>
                       <td data-label="Waktu">
                         {new Date(row.created_at).toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })}
@@ -376,6 +465,7 @@ export default function LaporanPage() {
                       <td data-label="Nama">{row.nama}</td>
                       <td data-label="Kelas">{row.kelas || "-"}</td>
                       <td data-label="Barcode">{row.barcode_id}</td>
+                      <td data-label="Status">{row.status_hari_ini || "-"}</td>
                     </tr>
                   ))
                 )}
@@ -401,18 +491,23 @@ export default function LaporanPage() {
           ) : null}
         </article>
 
-        <article className="card">
+        <article className="card p-5 md:p-6">
           <div className="card__head">
             <div>
               <h3 className="card__title">Laporan Pelanggaran</h3>
               <p className="card__desc">Siswa yang terkena pelanggaran.</p>
             </div>
-            <button className="btn btn--danger btn--sm" type="button" onClick={() => handleDownload("pelanggaran")}>
-              Download CSV
-            </button>
+            <div className="actions" style={{ gap: "12px" }}>
+              <button className="btn btn--primary btn--sm" type="button" onClick={() => handleDownload("pelanggaran")}>
+                Download CSV
+              </button>
+              <button className="btn btn--danger btn--sm" type="button" aria-disabled="true" disabled>
+                Download PDF
+              </button>
+            </div>
           </div>
           <div className="table-wrap">
-            <table className="table">
+            <table className="table table-auto">
               <thead>
                 <tr>
                   <th>Tanggal</th>
@@ -420,19 +515,20 @@ export default function LaporanPage() {
                   <th>Nama</th>
                   <th>Kelas</th>
                   <th>Pelanggaran</th>
+                  <th>Status</th>
                   <th>Poin</th>
                 </tr>
               </thead>
               <tbody>
                 {pelanggaranPageData.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="table-empty">
+                    <td colSpan={7} className="table-empty">
                       Tidak ada data. Catat pelanggaran dari halaman siswa agar muncul.
                     </td>
                   </tr>
                 ) : (
                   pelanggaranPageData.map((row) => (
-                    <tr key={row.id}>
+                    <tr key={row.id} className="hover:bg-gray-50">
                       <td data-label="Tanggal">{row.tanggal}</td>
                       <td data-label="Waktu">
                         {new Date(row.created_at).toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })}
@@ -440,6 +536,7 @@ export default function LaporanPage() {
                       <td data-label="Nama">{row.nama}</td>
                       <td data-label="Kelas">{row.kelas || "-"}</td>
                       <td data-label="Pelanggaran">{row.nama_pelanggaran}</td>
+                      <td data-label="Status">{row.status_hari_ini || "-"}</td>
                       <td data-label="Poin">{row.poin_pelanggaran}</td>
                     </tr>
                   ))
@@ -464,6 +561,65 @@ export default function LaporanPage() {
               })}
             </div>
           ) : null}
+        </article>
+
+        <article className="card p-5 md:p-6">
+          <div className="card__head">
+            <div>
+              <h3 className="card__title">Rekap Status per Siswa</h3>
+              <p className="card__desc">Hadir, Izin, Sakit, Alfa</p>
+            </div>
+            <div className="field" style={{ minWidth: 180 }}>
+              <label className="label" htmlFor="siswaFilter">Pilih Siswa</label>
+              <select
+                id="siswaFilter"
+                className="input"
+                value={selectedSiswa}
+                onChange={(e) => setSelectedSiswa(e.target.value)}
+              >
+                <option value="all">Semua Siswa</option>
+                {siswaOptions.map((nama) => (
+                  <option key={nama} value={nama}>
+                    {nama}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+          <div className="table-wrap">
+            <table className="table table-auto table-no-stack table-compact-right">
+              <thead>
+                <tr>
+                  <th>Nama</th>
+                  <th>Kelas</th>
+                  <th>Hadir</th>
+                  <th>Izin</th>
+                  <th>Sakit</th>
+                  <th>Alfa</th>
+                  <th>Total</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredStatusSummary.length === 0 ? (
+                  <tr>
+                    <td colSpan={7} className="table-empty">Tidak ada data.</td>
+                  </tr>
+                ) : (
+                  filteredStatusSummary.map((row) => (
+                    <tr key={`${row.nama}-${row.kelas}`} className="hover:bg-gray-50">
+                      <td data-label="Nama">{row.nama}</td>
+                      <td data-label="Kelas">{row.kelas}</td>
+                      <td data-label="Hadir">{row.hadir}</td>
+                      <td data-label="Izin">{row.izin}</td>
+                      <td data-label="Sakit">{row.sakit}</td>
+                      <td data-label="Alfa">{row.alfa}</td>
+                      <td data-label="Total">{row.hadir + row.izin + row.sakit + row.alfa}</td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
         </article>
       </div>
     </div>

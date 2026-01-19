@@ -550,6 +550,25 @@ body {
   color: #ffffff;
 }
 
+.btn--success {
+  background: #22c55e;
+  color: #ffffff;
+}
+
+.btn--warning {
+  background: #f59e0b;
+  color: #ffffff;
+}
+
+.btn--info {
+  background: #3b82f6;
+  color: #ffffff;
+}
+.btn--warning {
+  background: #f59e0b;
+  color: #ffffff;
+}
+
 .btn--sm {
   padding: 6px 12px;
   border-radius: 10px;
@@ -659,6 +678,51 @@ body {
   background: #f59e0b;
 }
 
+.dot--hadir {
+  background: #22c55e;
+}
+
+.dot--izin {
+  background: #f59e0b;
+}
+
+.dot--sakit {
+  background: #3b82f6;
+}
+
+.dot--alfa {
+  background: #ef4444;
+}
+
+.dot--belum {
+  background: #94a3b8;
+}
+
+.pill--hadir {
+  background: rgba(34, 197, 94, 0.12);
+  border-color: rgba(34, 197, 94, 0.4);
+}
+
+.pill--izin {
+  background: rgba(245, 158, 11, 0.15);
+  border-color: rgba(245, 158, 11, 0.4);
+}
+
+.pill--sakit {
+  background: rgba(59, 130, 246, 0.12);
+  border-color: rgba(59, 130, 246, 0.4);
+}
+
+.pill--alfa {
+  background: rgba(239, 68, 68, 0.12);
+  border-color: rgba(239, 68, 68, 0.4);
+}
+
+.pill--belum {
+  background: rgba(148, 163, 184, 0.18);
+  border-color: rgba(148, 163, 184, 0.45);
+}
+
 .table-wrap {
   width: 100%;
   overflow-x: auto;
@@ -677,6 +741,11 @@ body {
   border-bottom: 1px solid rgba(148, 163, 184, 0.3);
   font-size: 0.85rem;
   color: #000000;
+}
+
+.table-compact th,
+.table-compact td {
+  padding: 12px 16px;
 }
 
 .table td {
@@ -926,6 +995,60 @@ body {
     text-align: left;
     margin-bottom: 12px;
     margin-right: 0;
+  }
+
+  .table-compact td {
+    padding: 10px 12px;
+    gap: 8px;
+    flex-direction: row;
+    align-items: center;
+    text-align: right;
+  }
+
+  .table-compact td::before {
+    margin-bottom: 8px;
+    margin-right: 10px;
+  }
+
+  .table-no-stack,
+  .table-no-stack thead,
+  .table-no-stack tbody,
+  .table-no-stack tr,
+  .table-no-stack th,
+  .table-no-stack td {
+    display: table;
+  }
+
+  .table-no-stack thead {
+    display: table-header-group;
+  }
+
+  .table-no-stack tbody {
+    display: table-row-group;
+  }
+
+  .table-no-stack tr {
+    display: table-row;
+  }
+
+  .table-no-stack th,
+  .table-no-stack td {
+    display: table-cell;
+    padding: 12px 14px;
+    text-align: left;
+  }
+
+  .table-no-stack td::before {
+    content: none;
+  }
+
+  .table-compact-right td {
+    text-align: right;
+  }
+
+  .table-compact-right td:first-child,
+  .table-compact-right th:first-child {
+    text-align: left;
   }
 
   .row-actions {

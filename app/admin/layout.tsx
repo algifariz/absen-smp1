@@ -16,6 +16,23 @@ export default function AdminLayout({ children }: Props) {
 
   const navItems = [
     {
+      href: "/admin/dashboard",
+      label: "Dashboard",
+      icon: (
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path
+            d="M4 12a8 8 0 1 1 16 0"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.6"
+            strokeLinecap="round"
+          />
+          <path d="M12 12V6.5" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+          <circle cx="12" cy="12" r="1.8" fill="currentColor" />
+        </svg>
+      ),
+    },
+    {
       href: "/",
       label: "Data Master",
       icon: (
@@ -42,23 +59,6 @@ export default function AdminLayout({ children }: Props) {
             strokeWidth="1.6"
           />
           <path d="M8 12h8M12 9v6" fill="none" stroke="currentColor" strokeWidth="1.6" />
-        </svg>
-      ),
-    },
-    {
-      href: "/admin/dashboard",
-      label: "Dashboard",
-      icon: (
-        <svg viewBox="0 0 24 24" aria-hidden="true">
-          <path
-            d="M4 12a8 8 0 1 1 16 0"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="1.6"
-            strokeLinecap="round"
-          />
-          <path d="M12 12V6.5" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
-          <circle cx="12" cy="12" r="1.8" fill="currentColor" />
         </svg>
       ),
     },

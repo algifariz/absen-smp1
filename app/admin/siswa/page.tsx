@@ -14,6 +14,7 @@ type SiswaRecord = {
   dibuat: string;
   barcode_id: string;
   absen_hari_ini: string | null;
+  status_hari_ini?: "hadir" | "izin" | "sakit" | "alfa" | null;
   created_at: string;
 };
 
@@ -234,32 +235,32 @@ export default function KelolaSiswaPage() {
     }
   };
 
-  const processAbsensi = useCallback(
-    async (barcodeId: string) => {
-      const siswa = siswaData.find((s) => s.barcode_id === barcodeId);
-      if (!siswa) {
-        showNotif("Barcode tidak ditemukan");
-        return;
-      }
-      const today = getTodayDate();
-      if (siswa.absen_hari_ini === today) {
-        showNotif(`${siswa.nama} sudah absen hari ini`);
-        return;
-      }
-
-      const ok = await handleUpdateSiswa(siswa, {
-        kehadiran: siswa.kehadiran + 1,
-        absen_hari_ini: today,
+  const handleSetHadir = async (siswa: SiswaRecord) => {
+    const today = getTodayDate();
+    if (siswa.absen_hari_ini === today && siswa.status_hari_ini === "hadir") {
+      showNotif(`${siswa.nama} sudah hadir hari ini`);
+      return;
+    }
+    const ok = await handleUpdateSiswa(siswa, {
+      kehadiran: siswa.kehadiran + 1,
+      absen_hari_ini: today,
+      status_hari_ini: "hadir",
+    });
+    if (ok) {
+      showNotif(`${siswa.nama} dicatat hadir`);
+      await supabase.from("absensi_log").insert({
+        siswa_id: siswa.id,
+        nama: siswa.nama,
+        kelas: siswa.kelas,
+        barcode_id: siswa.barcode_id,
+        tanggal: today,
+        status_hari_ini: "hadir",
+        created_at: new Date().toISOString(),
       });
-
-      if (ok) {
-        showNotif(`${siswa.nama} berhasil absen`);
-      } else {
-        showNotif("Gagal mencatat absensi");
-      }
-    },
-    [siswaData, handleUpdateSiswa, showNotif],
-  );
+    } else {
+      showNotif("Gagal menyimpan status");
+    }
+  };
 
   const handlePlusPoin = async (siswa: SiswaRecord) => {
     const today = getTodayDate();
@@ -291,6 +292,7 @@ export default function KelolaSiswaPage() {
         kelas: siswa.kelas,
         nama_pelanggaran: namaPelanggaran,
         poin_pelanggaran: poinPenalti,
+        status_hari_ini: siswa.status_hari_ini || "hadir",
         tanggal: new Date().toISOString().slice(0, 10),
         created_at: new Date().toISOString(),
       });
@@ -307,6 +309,31 @@ export default function KelolaSiswaPage() {
       showNotif(`Nama diubah menjadi "${newName}"`);
     } else {
       showNotif("Gagal mengubah nama");
+    }
+  };
+
+  const handleSetStatus = async (
+    siswa: SiswaRecord,
+    status: "izin" | "sakit" | "alfa",
+  ) => {
+    const today = getTodayDate();
+    const ok = await handleUpdateSiswa(siswa, {
+      absen_hari_ini: today,
+      status_hari_ini: status,
+    });
+    if (ok) {
+      showNotif(`${siswa.nama} dicatat ${status}`);
+      await supabase.from("absensi_log").insert({
+        siswa_id: siswa.id,
+        nama: siswa.nama,
+        kelas: siswa.kelas,
+        barcode_id: siswa.barcode_id,
+        tanggal: today,
+        status_hari_ini: status,
+        created_at: new Date().toISOString(),
+      });
+    } else {
+      showNotif("Gagal menyimpan status");
     }
   };
 
@@ -402,17 +429,31 @@ export default function KelolaSiswaPage() {
                       ) : (
                         filteredSiswa.map((siswa) => {
                           const sudahAbsen = isClientReady && siswa.absen_hari_ini === todayDate;
+                          const statusValue =
+                            sudahAbsen && siswa.status_hari_ini ? siswa.status_hari_ini : null;
                           const statusKnown = isClientReady;
                           const statusLabel = !statusKnown
                             ? "Memuat..."
                             : sudahAbsen
-                              ? "Hadir Hari Ini"
+                              ? statusValue === "izin"
+                                ? "Izin"
+                                : statusValue === "sakit"
+                                  ? "Sakit"
+                                  : statusValue === "alfa"
+                                    ? "Alfa"
+                                  : "Hadir Hari Ini"
                               : "Belum Absen";
                           const statusVariant = !statusKnown
-                            ? "warn"
+                            ? "belum"
                             : sudahAbsen
-                              ? "ok"
-                              : "warn";
+                              ? statusValue === "izin"
+                                ? "izin"
+                                : statusValue === "sakit"
+                                  ? "sakit"
+                                  : statusValue === "alfa"
+                                    ? "alfa"
+                                    : "hadir"
+                              : "belum";
                           const pointClass = siswa.poin > 0 ? "chip--green" : siswa.poin < 0 ? "chip--red" : "chip--muted";
                           return (
                             <Fragment key={siswa.id}>
@@ -444,7 +485,7 @@ export default function KelolaSiswaPage() {
                                   <span className={`chip ${pointClass}`}>{siswa.poin}</span>
                                 </td>
                                 <td data-label="Status">
-                                  <span className="pill">
+                                  <span className={`pill pill--${statusVariant}`}>
                                     <span className={`dot dot--${statusVariant}`} />
                                     {statusLabel}
                                   </span>
@@ -452,9 +493,11 @@ export default function KelolaSiswaPage() {
                                 <td className="td-right" data-label="Aksi">
                                   <div className="row-actions">
                                     <button
-                                      className="btn btn--ghost btn--sm btn--icon"
+                                      className={`btn btn--sm btn--icon ${
+                                        statusValue === "hadir" ? "btn--success" : "btn--ghost"
+                                      }`}
                                       type="button"
-                                      onClick={() => processAbsensi(siswa.barcode_id)}
+                                      onClick={() => handleSetHadir(siswa)}
                                     >
                                       <span className="btn__icon" aria-hidden="true">
                                         <svg viewBox="0 0 24 24">
@@ -467,7 +510,28 @@ export default function KelolaSiswaPage() {
                                           <path d="M8 12h8" fill="none" stroke="currentColor" strokeWidth="1.6" />
                                         </svg>
                                       </span>
-                                      Absensi
+                                      Hadir
+                                    </button>
+                                    <button
+                                      className={`btn btn--sm ${statusValue === "izin" ? "btn--warning" : "btn--ghost"}`}
+                                      type="button"
+                                      onClick={() => handleSetStatus(siswa, "izin")}
+                                    >
+                                      Izin
+                                    </button>
+                                    <button
+                                      className={`btn btn--sm ${statusValue === "sakit" ? "btn--info" : "btn--ghost"}`}
+                                      type="button"
+                                      onClick={() => handleSetStatus(siswa, "sakit")}
+                                    >
+                                      Sakit
+                                    </button>
+                                    <button
+                                      className={`btn btn--sm ${statusValue === "alfa" ? "btn--danger" : "btn--ghost"}`}
+                                      type="button"
+                                      onClick={() => handleSetStatus(siswa, "alfa")}
+                                    >
+                                      Alfa
                                     </button>
                                     <button
                                       className="btn btn--ghost btn--sm btn--icon"

@@ -167,6 +167,7 @@ export default function AbsensiPage() {
           kelas: siswa.kelas,
           barcode_id: siswa.barcode_id,
           tanggal: today,
+          status_hari_ini: "hadir",
           created_at: new Date().toISOString(),
         });
       } else {
