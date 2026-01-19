@@ -197,7 +197,7 @@ body {
 
 .mobile-topbar__title {
   font-weight: 800;
-  color: #0f172a;
+  color: #000000;
 }
 
 .mobile-topbar__btn {
@@ -207,6 +207,22 @@ body {
   border: 1px solid rgba(148, 163, 184, 0.4);
   background: #ffffff;
   font-weight: 700;
+  display: grid;
+  place-items: center;
+}
+
+.burger {
+  width: 18px;
+  height: 12px;
+  display: grid;
+  gap: 3px;
+}
+
+.burger span {
+  display: block;
+  height: 2px;
+  border-radius: 999px;
+  background: #000000;
 }
 
 .sidebar-overlay {

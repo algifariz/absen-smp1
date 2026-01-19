@@ -163,7 +163,11 @@ export default function AdminLayout({ children }: Props) {
                 onClick={() => setSidebarOpen(true)}
                 aria-label="Buka menu"
               >
-                Menu
+                <span className="burger" aria-hidden="true">
+                  <span />
+                  <span />
+                  <span />
+                </span>
               </button>
             </div>
             {children}
