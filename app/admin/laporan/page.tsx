@@ -645,7 +645,7 @@ export default function LaporanPage() {
             </div>
           </div>
           <div className="table-wrap">
-            <table className="table table-auto report-table">
+            <table className="table table-auto table-compact table-no-stack report-table">
               <thead>
                 <tr>
                   <th>Tanggal</th>
