@@ -74,6 +74,9 @@ export default function LaporanPage() {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [fromDate, setFromDate] = useState(formatDateInput(startOfRange("bulan")));
   const [toDate, setToDate] = useState(formatDateInput(new Date()));
+  const [pageAbsensi, setPageAbsensi] = useState(1);
+  const [pagePelanggaran, setPagePelanggaran] = useState(1);
+  const pageSize = 5;
 
   useEffect(() => {
     const start = startOfRange(range);
@@ -190,6 +193,24 @@ export default function LaporanPage() {
       [row.nama, row.kelas, row.nama_pelanggaran].some((field) => field?.toLowerCase().includes(query)),
     );
   }, [pelanggaranData, search, selectedKelas]);
+
+  useEffect(() => {
+    setPageAbsensi(1);
+    setPagePelanggaran(1);
+  }, [fromDate, toDate, search, selectedKelas]);
+
+  const absensiTotalPages = Math.max(1, Math.ceil(filteredAbsensi.length / pageSize));
+  const pelanggaranTotalPages = Math.max(1, Math.ceil(filteredPelanggaran.length / pageSize));
+
+  const absensiPageData = useMemo(() => {
+    const start = (pageAbsensi - 1) * pageSize;
+    return filteredAbsensi.slice(start, start + pageSize);
+  }, [filteredAbsensi, pageAbsensi]);
+
+  const pelanggaranPageData = useMemo(() => {
+    const start = (pagePelanggaran - 1) * pageSize;
+    return filteredPelanggaran.slice(start, start + pageSize);
+  }, [filteredPelanggaran, pagePelanggaran]);
 
   const kelasOptions = useMemo(() => {
     const kelasSet = new Set<string>();
@@ -341,12 +362,12 @@ export default function LaporanPage() {
                 </tr>
               </thead>
               <tbody>
-                {filteredAbsensi.length === 0 ? (
+                {absensiPageData.length === 0 ? (
                   <tr>
                     <td colSpan={5} className="table-empty">Tidak ada data.</td>
                   </tr>
                 ) : (
-                  filteredAbsensi.map((row) => (
+                  absensiPageData.map((row) => (
                     <tr key={row.id}>
                       <td data-label="Tanggal">{row.tanggal}</td>
                       <td data-label="Waktu">
@@ -361,6 +382,23 @@ export default function LaporanPage() {
               </tbody>
             </table>
           </div>
+          {absensiTotalPages > 1 ? (
+            <div className="segmented" aria-label="Pagination absensi">
+              {Array.from({ length: absensiTotalPages }, (_, idx) => {
+                const page = idx + 1;
+                return (
+                  <button
+                    key={page}
+                    className={`segmented__btn ${pageAbsensi === page ? "is-active" : ""}`}
+                    type="button"
+                    onClick={() => setPageAbsensi(page)}
+                  >
+                    {page}
+                  </button>
+                );
+              })}
+            </div>
+          ) : null}
         </article>
 
         <article className="card">
@@ -386,14 +424,14 @@ export default function LaporanPage() {
                 </tr>
               </thead>
               <tbody>
-                {filteredPelanggaran.length === 0 ? (
+                {pelanggaranPageData.length === 0 ? (
                   <tr>
                     <td colSpan={6} className="table-empty">
                       Tidak ada data. Catat pelanggaran dari halaman siswa agar muncul.
                     </td>
                   </tr>
                 ) : (
-                  filteredPelanggaran.map((row) => (
+                  pelanggaranPageData.map((row) => (
                     <tr key={row.id}>
                       <td data-label="Tanggal">{row.tanggal}</td>
                       <td data-label="Waktu">
@@ -409,6 +447,23 @@ export default function LaporanPage() {
               </tbody>
             </table>
           </div>
+          {pelanggaranTotalPages > 1 ? (
+            <div className="segmented" aria-label="Pagination pelanggaran">
+              {Array.from({ length: pelanggaranTotalPages }, (_, idx) => {
+                const page = idx + 1;
+                return (
+                  <button
+                    key={page}
+                    className={`segmented__btn ${pagePelanggaran === page ? "is-active" : ""}`}
+                    type="button"
+                    onClick={() => setPagePelanggaran(page)}
+                  >
+                    {page}
+                  </button>
+                );
+              })}
+            </div>
+          ) : null}
         </article>
       </div>
     </div>
