@@ -223,7 +223,7 @@ body {
 }
 
 .page-subtitle {
-  color: #475569;
+  color: #111827;
   font-size: 0.9rem;
 }
 
@@ -288,7 +288,7 @@ body {
 }
 
 .card__desc {
-  color: #475569;
+  color: #111827;
   font-size: 0.85rem;
 }
 
@@ -427,7 +427,7 @@ body {
 
 .list__meta {
   font-size: 0.75rem;
-  color: #475569;
+  color: #111827;
 }
 
 .right {
@@ -462,10 +462,10 @@ body {
   display: inline-flex;
   gap: 8px;
   align-items: center;
-  padding: 6px 10px;
-  border-radius: 999px;
-  background: rgba(226, 232, 240, 0.6);
-  border: 1px solid rgba(148, 163, 184, 0.35);
+  padding: 6px 12px;
+  border-radius: 4px;
+  background: #f1f5f9;
+  border: 1px solid rgba(148, 163, 184, 0.4);
   font-size: 0.75rem;
   font-weight: 700;
   color: #0f172a;
@@ -518,7 +518,7 @@ body {
 
 .table-empty {
   text-align: center;
-  color: #475569;
+  color: #111827;
 }
 
 .table-panel td {
@@ -690,7 +690,7 @@ body {
 }
 
 .muted {
-  color: #475569;
+  color: #111827;
   font-size: 0.8rem;
 }
 
@@ -742,7 +742,7 @@ body {
     font-weight: 700;
     text-transform: uppercase;
     font-size: 0.7rem;
-    color: #475569;
+    color: #111827;
     text-align: left;
     margin-bottom: 6px;
     margin-right: 0;
@@ -764,8 +764,9 @@ body {
 
   .pill {
     font-size: 0.78rem;
-    padding: 6px 12px;
+    padding: 6px 10px;
     background: #f1f5f9;
+    border-radius: 4px;
   }
 }
 
@@ -1178,7 +1179,7 @@ body {
 
 .modal-card .card__desc {
   font-size: 0.95rem;
-  color: #475569;
+  color: #111827;
 }
 
 .modal-card .input {

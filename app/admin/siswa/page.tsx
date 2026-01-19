@@ -489,7 +489,7 @@ export default function KelolaSiswaPage() {
                                           <path d="M12 5v14M5 12h14" fill="none" stroke="currentColor" strokeWidth="1.8" />
                                         </svg>
                                       </span>
-                                      + Poin
+                                       Poin
                                     </button>
                                     <button
                                       className="btn btn--danger btn--sm btn--icon"
