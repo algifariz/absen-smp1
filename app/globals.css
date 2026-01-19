@@ -754,6 +754,7 @@ body {
     padding: 6px 10px;
     line-height: 1.2;
     border-bottom: 1px solid rgba(148, 163, 184, 0.1);
+    color: #000000;
   }
   .table td:last-child {
     border-bottom: none;
@@ -930,6 +931,16 @@ body {
     width: 100%;
     justify-content: flex-start;
   }
+
+  .card {
+    margin-bottom: 14px;
+  }
+
+  .table td[data-label="Kelas"] {
+    font-weight: 800;
+    font-size: 0.9rem;
+    color: #000000;
+  }
 }
 
 .glass-card {
@@ -947,21 +958,13 @@ body {
 }
 
 .gradient-bg {
-  background: radial-gradient(circle at 15% 10%, rgba(59, 130, 246, 0.08), transparent 55%),
-    radial-gradient(circle at 85% 0%, rgba(14, 165, 233, 0.12), transparent 50%),
-    linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
+  background: transparent;
   position: relative;
   overflow: hidden;
 }
 
 .gradient-bg::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background-image: linear-gradient(120deg, rgba(255, 255, 255, 0.6), transparent 40%),
-    radial-gradient(circle at 30% 30%, rgba(226, 232, 240, 0.6), transparent 55%);
-  opacity: 0.6;
-  pointer-events: none;
+  content: none;
 }
 
 .fade-in {

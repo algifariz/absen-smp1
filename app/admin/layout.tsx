@@ -136,6 +136,7 @@ export default function AdminLayout({ children }: Props) {
                   key={item.href}
                   className={`nav__item ${isActive(item.href) ? "nav__item--active" : ""}`}
                   href={item.href}
+                  onClick={() => setSidebarOpen(false)}
                 >
                   <span className="nav__icon">{item.icon}</span>
                   <span>{item.label}</span>
