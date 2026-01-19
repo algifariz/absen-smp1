@@ -38,6 +38,29 @@ function generateBarcodeId() {
   return `STD${Date.now()}${Math.random().toString(36).slice(2, 7).toUpperCase()}`;
 }
 
+function drawRoundedRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) {
+  const radius = Math.min(r, w / 2, h / 2);
+  ctx.beginPath();
+  ctx.moveTo(x + radius, y);
+  ctx.lineTo(x + w - radius, y);
+  ctx.quadraticCurveTo(x + w, y, x + w, y + radius);
+  ctx.lineTo(x + w, y + h - radius);
+  ctx.quadraticCurveTo(x + w, y + h, x + w - radius, y + h);
+  ctx.lineTo(x + radius, y + h);
+  ctx.quadraticCurveTo(x, y + h, x, y + h - radius);
+  ctx.lineTo(x, y + radius);
+  ctx.quadraticCurveTo(x, y, x + radius, y);
+  ctx.closePath();
+}
+
+function getInitials(name: string) {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return "S";
+  const first = parts[0]?.[0] ?? "";
+  const last = parts.length > 1 ? parts[parts.length - 1]?.[0] ?? "" : "";
+  return (first + last).toUpperCase();
+}
+
 export default function KelolaSiswaPage() {
   const [siswaData, setSiswaData] = useState<SiswaRecord[]>([]);
   const [pelanggaranData, setPelanggaranData] = useState<PelanggaranRecord[]>([]);
@@ -342,6 +365,142 @@ export default function KelolaSiswaPage() {
       showNotif("Gagal menyimpan status");
     }
   };
+
+  const handleDownloadCard = useCallback(async (siswa: SiswaRecord) => {
+    const canvas = document.createElement("canvas");
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    let qrDataUrl = "";
+    try {
+      qrDataUrl = await QRCode.toDataURL(siswa.barcode_id, {
+        width: 360,
+        margin: 2,
+        color: { dark: "#0f172a", light: "#ffffff" },
+      });
+    } catch {
+      qrDataUrl = "";
+    }
+
+    const qrImg = new Image();
+    qrImg.onload = () => {
+      canvas.width = 1000;
+      canvas.height = 600;
+
+      const gradient = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
+      gradient.addColorStop(0, "#0b1220");
+      gradient.addColorStop(0.5, "#0f1b3d");
+      gradient.addColorStop(1, "#0b1026");
+      ctx.fillStyle = gradient;
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      drawRoundedRect(ctx, 20, 20, canvas.width - 40, canvas.height - 40, 28);
+      ctx.lineWidth = 2;
+      ctx.strokeStyle = "rgba(255,255,255,0.12)";
+      ctx.stroke();
+
+      ctx.fillStyle = "rgba(16, 185, 129, 0.25)";
+      ctx.beginPath();
+      ctx.moveTo(canvas.width - 200, canvas.height - 120);
+      ctx.arcTo(canvas.width - 40, canvas.height - 120, canvas.width - 40, canvas.height - 40, 130);
+      ctx.lineTo(canvas.width - 40, canvas.height - 40);
+      ctx.lineTo(canvas.width - 200, canvas.height - 40);
+      ctx.closePath();
+      ctx.fill();
+
+      ctx.fillStyle = "#ffffff";
+      ctx.font = "600 18px Arial";
+      ctx.textAlign = "right";
+      ctx.fillText("Absensi SMP", canvas.width - 50, 70);
+
+      ctx.textAlign = "left";
+      ctx.font = "700 44px Arial";
+      ctx.fillText(siswa.nama.toUpperCase(), 70, 140);
+
+      const roleText = `Siswa Kelas ${siswa.kelas || "-"}`;
+      ctx.font = "600 16px Arial";
+      const pillWidth = ctx.measureText(roleText).width + 26;
+      drawRoundedRect(ctx, 70, 158, pillWidth, 30, 15);
+      ctx.fillStyle = "#dcfce7";
+      ctx.fill();
+      ctx.fillStyle = "#166534";
+      ctx.fillText(roleText, 83, 179);
+
+      const idLeft = 70;
+      const idTop = 240;
+      const idMaxWidth = 520;
+      ctx.textAlign = "left";
+      ctx.fillStyle = "#cbd5f5";
+      ctx.font = "600 14px Arial";
+      ctx.fillText("ID NO", idLeft, idTop - 12);
+      ctx.font = "700 18px Courier New";
+      ctx.fillStyle = "#ffffff";
+      const idValue = siswa.barcode_id;
+      const idText = ctx.measureText(idValue).width > idMaxWidth
+        ? `${idValue.slice(0, 4)}-${idValue.slice(4)}`
+        : idValue;
+      ctx.fillText(idText, idLeft, idTop);
+      ctx.fillStyle = "#94a3b8";
+      ctx.font = "500 12px Arial";
+      ctx.fillText("Scan barcode untuk absensi", idLeft, idTop + 20);
+
+      const avatarX = canvas.width - 320;
+      const avatarY = 110;
+      const avatarSize = 210;
+      drawRoundedRect(ctx, avatarX, avatarY, avatarSize, avatarSize, 24);
+      ctx.fillStyle = "rgba(255,255,255,0.08)";
+      ctx.fill();
+      ctx.strokeStyle = "rgba(255,255,255,0.35)";
+      ctx.stroke();
+
+      if (qrDataUrl) {
+        const qrSize = 170;
+        const qrX = avatarX + (avatarSize - qrSize) / 2;
+        const qrY = avatarY + (avatarSize - qrSize) / 2;
+        drawRoundedRect(ctx, qrX - 16, qrY - 16, qrSize + 32, qrSize + 32, 20);
+        ctx.fillStyle = "#ffffff";
+        ctx.fill();
+        ctx.strokeStyle = "#ffffff";
+        ctx.lineWidth = 1;
+        ctx.stroke();
+        ctx.drawImage(qrImg, qrX, qrY, qrSize, qrSize);
+      } else {
+        ctx.beginPath();
+        ctx.arc(avatarX + avatarSize / 2, avatarY + avatarSize / 2, 90, 0, Math.PI * 2);
+        ctx.fillStyle = "rgba(255,255,255,0.18)";
+        ctx.fill();
+        ctx.fillStyle = "#ffffff";
+        ctx.font = "800 58px Arial";
+        ctx.textAlign = "center";
+        ctx.fillText(getInitials(siswa.nama), avatarX + avatarSize / 2, avatarY + avatarSize / 2 + 18);
+      }
+
+      ctx.textAlign = "left";
+      ctx.fillStyle = "#94a3b8";
+      ctx.font = "500 12px Arial";
+      const tanggal = new Date(siswa.dibuat).toLocaleDateString("id-ID", {
+        day: "numeric",
+        month: "long",
+        year: "numeric",
+      });
+      ctx.fillText(`Terdaftar: ${tanggal}`, 70, canvas.height - 46);
+
+      ctx.textAlign = "right";
+
+      canvas.toBlob((blob) => {
+        if (!blob) return;
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.download = `Kartu_${siswa.nama.replace(/\s+/g, "_")}_${siswa.barcode_id}.png`;
+        link.href = url;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+      }, "image/png");
+    };
+    qrImg.src = qrDataUrl;
+  }, []);
 
   return (
     <>
@@ -776,16 +935,10 @@ export default function KelolaSiswaPage() {
                 className="btn btn--primary"
                 type="button"
                 onClick={() => {
-                  if (!qrDataUrl) return;
-                  const link = document.createElement("a");
-                  link.download = `QR_${barcodeTarget.nama.replace(/\s+/g, "_")}_${barcodeTarget.barcode_id}.png`;
-                  link.href = qrDataUrl;
-                  document.body.appendChild(link);
-                  link.click();
-                  document.body.removeChild(link);
+                  handleDownloadCard(barcodeTarget);
                 }}
               >
-                Download QR
+                Download Kartu
               </button>
               <button className="btn btn--ghost" type="button" onClick={() => setBarcodeModalOpen(false)}>
                 Tutup

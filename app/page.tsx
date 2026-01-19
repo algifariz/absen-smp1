@@ -56,6 +56,29 @@ function getTodayDate() {
   return `${year}-${month}-${day}`;
 }
 
+function drawRoundedRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) {
+  const radius = Math.min(r, w / 2, h / 2);
+  ctx.beginPath();
+  ctx.moveTo(x + radius, y);
+  ctx.lineTo(x + w - radius, y);
+  ctx.quadraticCurveTo(x + w, y, x + w, y + radius);
+  ctx.lineTo(x + w, y + h - radius);
+  ctx.quadraticCurveTo(x + w, y + h, x + w - radius, y + h);
+  ctx.lineTo(x + radius, y + h);
+  ctx.quadraticCurveTo(x, y + h, x, y + h - radius);
+  ctx.lineTo(x, y + radius);
+  ctx.quadraticCurveTo(x, y, x + radius, y);
+  ctx.closePath();
+}
+
+function getInitials(name: string) {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return "S";
+  const first = parts[0]?.[0] ?? "";
+  const last = parts.length > 1 ? parts[parts.length - 1]?.[0] ?? "" : "";
+  return (first + last).toUpperCase();
+}
+
 export default function Home() {
   const [config] = useState<ConfigState>(defaultConfig);
   const [selectedKelas, setSelectedKelas] = useState<string>("all");
@@ -185,63 +208,90 @@ export default function Home() {
 
     const qrImg = new Image();
     qrImg.onload = () => {
-      canvas.width = 900;
-      canvas.height = 560;
+      canvas.width = 800;
+      canvas.height = 1200;
 
-      ctx.fillStyle = "#ffffff";
+      ctx.fillStyle = "#f8fafc";
       ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-      ctx.strokeStyle = "#0f172a";
+      drawRoundedRect(ctx, 24, 24, canvas.width - 48, canvas.height - 48, 28);
+      ctx.strokeStyle = "#e2e8f0";
       ctx.lineWidth = 2;
-      ctx.strokeRect(20, 20, canvas.width - 40, canvas.height - 40);
+      ctx.stroke();
+
+      ctx.fillStyle = "#1d4ed8";
+      drawRoundedRect(ctx, 40, 40, 80, 80, 16);
+      drawRoundedRect(ctx, canvas.width - 120, 40, 80, 80, 16);
+      drawRoundedRect(ctx, 40, canvas.height - 120, 80, 80, 16);
+      drawRoundedRect(ctx, canvas.width - 120, canvas.height - 120, 80, 80, 16);
 
       ctx.fillStyle = "#0f172a";
-      ctx.font = "bold 22px Arial";
-      ctx.textAlign = "left";
-      ctx.fillText("KARTU SISWA", 40, 60);
+      ctx.font = "700 24px Arial";
+      ctx.textAlign = "center";
+      ctx.fillText("ABSENSI SMP", canvas.width / 2, 130);
 
-      ctx.font = "16px Arial";
-      ctx.fillStyle = "#475569";
-      ctx.fillText("Sistem Absensi", 40, 86);
+      const qrSize = 220;
+      const qrX = (canvas.width - qrSize) / 2;
+      const qrY = 240;
+      ctx.save();
+      ctx.translate(canvas.width / 2, qrY + qrSize / 2);
+      ctx.rotate(Math.PI / 4);
+      drawRoundedRect(ctx, -140, -140, 280, 280, 22);
+      ctx.fillStyle = "#1d4ed8";
+      ctx.fill();
+      ctx.restore();
+
+      if (qrDataUrl) {
+        drawRoundedRect(ctx, qrX - 16, qrY - 16, qrSize + 32, qrSize + 32, 20);
+        ctx.fillStyle = "#ffffff";
+        ctx.fill();
+        ctx.strokeStyle = "#ffffff";
+        ctx.lineWidth = 1;
+        ctx.stroke();
+        ctx.drawImage(qrImg, qrX, qrY, qrSize, qrSize);
+      } else {
+        ctx.fillStyle = "#e2e8f0";
+        ctx.fillRect(qrX, qrY, qrSize, qrSize);
+        ctx.fillStyle = "#94a3b8";
+        ctx.font = "600 18px Arial";
+        ctx.textAlign = "center";
+        ctx.fillText(getInitials(siswa.nama), canvas.width / 2, qrY + qrSize / 2 + 8);
+      }
 
       ctx.textAlign = "center";
       ctx.fillStyle = "#0f172a";
-      ctx.font = "bold 34px Arial";
-      ctx.fillText(siswa.nama, canvas.width / 2, 150);
+      ctx.font = "700 28px Arial";
+      ctx.fillText(siswa.nama.toUpperCase(), canvas.width / 2, 580);
 
-      ctx.font = "16px Arial";
-      ctx.fillStyle = "#64748b";
-      ctx.fillText(`Kelas: ${siswa.kelas}`, canvas.width / 2, 178);
+      const roleText = `Siswa Kelas ${siswa.kelas || "-"}`;
+      ctx.font = "600 16px Arial";
+      drawRoundedRect(ctx, canvas.width / 2 - 110, 604, 220, 32, 16);
+      ctx.fillStyle = "#dcfce7";
+      ctx.fill();
+      ctx.fillStyle = "#166534";
+      ctx.fillText(roleText, canvas.width / 2, 626);
 
-      if (qrDataUrl) {
-        const qrSize = 260;
-        const qrX = (canvas.width - qrSize) / 2;
-        const qrY = 210;
-        ctx.fillStyle = "#f8fafc";
-        ctx.fillRect(qrX - 12, qrY - 12, qrSize + 24, qrSize + 24);
-        ctx.strokeStyle = "#e2e8f0";
-        ctx.lineWidth = 2;
-        ctx.strokeRect(qrX - 12, qrY - 12, qrSize + 24, qrSize + 24);
-        ctx.drawImage(qrImg, qrX, qrY, qrSize, qrSize);
-      }
-
-      ctx.font = "bold 20px Courier New";
       ctx.fillStyle = "#0f172a";
-      ctx.fillText(siswa.barcode_id, canvas.width / 2, 210 + 260 + 44);
+      ctx.font = "600 14px Courier New";
+      ctx.fillText("ID NO", canvas.width / 2, 690);
+      ctx.font = "700 18px Courier New";
+      ctx.fillText(siswa.barcode_id, canvas.width / 2, 718);
 
-      ctx.textAlign = "left";
-      ctx.font = "14px Arial";
-      ctx.fillStyle = "#475569";
+      ctx.fillStyle = "#64748b";
+      ctx.font = "500 12px Arial";
+      ctx.fillText("Scan QR untuk absensi", canvas.width / 2, 744);
+
+      ctx.fillStyle = "#94a3b8";
+      ctx.font = "500 12px Arial";
       const tanggal = new Date(siswa.dibuat).toLocaleDateString("id-ID", {
         day: "numeric",
         month: "long",
         year: "numeric",
       });
-      ctx.fillText(`Terdaftar: ${tanggal}`, 40, canvas.height - 56);
+      ctx.textAlign = "left";
+      ctx.fillText(`Terdaftar: ${tanggal}`, 60, canvas.height - 60);
 
       ctx.textAlign = "right";
-      ctx.fillText(`Poin: ${siswa.poin}`, canvas.width - 40, canvas.height - 56);
-      ctx.fillText(`Kehadiran: ${siswa.kehadiran}`, canvas.width - 40, canvas.height - 34);
 
       canvas.toBlob((blob) => {
         if (!blob) return;
