@@ -337,6 +337,86 @@ export default function LaporanPage() {
     URL.revokeObjectURL(url);
   };
 
+  const handleDownloadRekapCsv = () => {
+    const rows = filteredStatusSummary.map((row) => ({
+      nama: row.nama,
+      kelas: row.kelas,
+      hadir: row.hadir,
+      izin: row.izin,
+      sakit: row.sakit,
+      alfa: row.alfa,
+      total: row.hadir + row.izin + row.sakit + row.alfa,
+    }));
+    const headers = Object.keys(rows[0] || {});
+    const csv = toCsv(rows, headers);
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `rekap_status_${fromDate}_sampai_${toDate}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
+  const handleDownloadRekapPdf = () => {
+    const rows = filteredStatusSummary;
+    const html = `
+      <html>
+        <head>
+          <title>Rekap Status per Siswa</title>
+          <style>
+            body { font-family: Arial, sans-serif; padding: 20px; color: #111827; }
+            h1 { font-size: 18px; margin-bottom: 12px; }
+            table { width: 100%; border-collapse: collapse; font-size: 12px; }
+            th, td { border: 1px solid #e2e8f0; padding: 8px; text-align: left; }
+            th { background: #f1f5f9; }
+          </style>
+        </head>
+        <body>
+          <h1>Rekap Status per Siswa (${fromDate} - ${toDate})</h1>
+          <table>
+            <thead>
+              <tr>
+                <th>Nama</th>
+                <th>Kelas</th>
+                <th>Hadir</th>
+                <th>Izin</th>
+                <th>Sakit</th>
+                <th>Alfa</th>
+                <th>Total</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${rows
+                .map(
+                  (row) => `
+                <tr>
+                  <td>${row.nama}</td>
+                  <td>${row.kelas}</td>
+                  <td>${row.hadir}</td>
+                  <td>${row.izin}</td>
+                  <td>${row.sakit}</td>
+                  <td>${row.alfa}</td>
+                  <td>${row.hadir + row.izin + row.sakit + row.alfa}</td>
+                </tr>
+              `,
+                )
+                .join("")}
+            </tbody>
+          </table>
+        </body>
+      </html>
+    `;
+    const printWindow = window.open("", "_blank");
+    if (!printWindow) return;
+    printWindow.document.write(html);
+    printWindow.document.close();
+    printWindow.focus();
+    printWindow.print();
+  };
+
   return (
     <div className="absensi-shell fade-in">
       <div className="glass-card rounded-2xl p-5 md:p-6 mb-6 premium-shadow absensi-hero">
@@ -423,13 +503,13 @@ export default function LaporanPage() {
       </article>
 
       <div className="admin-grid" style={{ gap: "24px" }}>
-        <article className="card p-5 md:p-6">
-          <div className="card__head">
+        <article className="card p-5 md:p-6 report-card">
+          <div className="card__head report-header">
             <div>
               <h3 className="card__title">Laporan Absensi</h3>
               <p className="card__desc">Data kehadiran siswa.</p>
             </div>
-            <div className="actions" style={{ gap: "12px" }}>
+            <div className="actions report-actions">
               <button className="btn btn--primary btn--sm" type="button" onClick={() => handleDownload("absensi")}>
                 Download CSV
               </button>
@@ -439,7 +519,7 @@ export default function LaporanPage() {
             </div>
           </div>
           <div className="table-wrap">
-            <table className="table table-auto table-compact table-no-stack">
+            <table className="table table-auto table-compact table-no-stack report-table">
               <thead>
                 <tr>
                   <th>Tanggal</th>
@@ -491,13 +571,13 @@ export default function LaporanPage() {
           ) : null}
         </article>
 
-        <article className="card p-5 md:p-6">
-          <div className="card__head">
+        <article className="card p-5 md:p-6 report-card">
+          <div className="card__head report-header">
             <div>
               <h3 className="card__title">Laporan Pelanggaran</h3>
               <p className="card__desc">Siswa yang terkena pelanggaran.</p>
             </div>
-            <div className="actions" style={{ gap: "12px" }}>
+            <div className="actions report-actions">
               <button className="btn btn--primary btn--sm" type="button" onClick={() => handleDownload("pelanggaran")}>
                 Download CSV
               </button>
@@ -507,7 +587,7 @@ export default function LaporanPage() {
             </div>
           </div>
           <div className="table-wrap">
-            <table className="table table-auto">
+            <table className="table table-auto report-table">
               <thead>
                 <tr>
                   <th>Tanggal</th>
@@ -563,8 +643,8 @@ export default function LaporanPage() {
           ) : null}
         </article>
 
-        <article className="card p-5 md:p-6">
-          <div className="card__head">
+        <article className="card p-5 md:p-6 report-card">
+          <div className="card__head report-header">
             <div>
               <h3 className="card__title">Rekap Status per Siswa</h3>
               <p className="card__desc">Hadir, Izin, Sakit, Alfa</p>
@@ -585,9 +665,17 @@ export default function LaporanPage() {
                 ))}
               </select>
             </div>
+            <div className="actions report-actions">
+              <button className="btn btn--primary btn--sm" type="button" onClick={handleDownloadRekapCsv}>
+                Download CSV
+              </button>
+              <button className="btn btn--danger btn--sm" type="button" onClick={handleDownloadRekapPdf}>
+                Download PDF
+              </button>
+            </div>
           </div>
           <div className="table-wrap">
-            <table className="table table-auto table-no-stack table-compact-right">
+            <table className="table table-auto table-no-stack table-compact-right report-table">
               <thead>
                 <tr>
                   <th>Nama</th>

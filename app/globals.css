@@ -444,6 +444,23 @@ body {
   align-items: flex-start;
 }
 
+.report-card .table-wrap {
+  overflow-x: auto;
+}
+
+.report-table {
+  min-width: 560px;
+}
+
+.report-header {
+  align-items: flex-start;
+}
+
+.report-actions {
+  gap: 12px;
+  margin-left: 16px;
+}
+
 .card__title {
   font-weight: 700;
   font-size: 1.1rem;
@@ -1049,6 +1066,19 @@ body {
   .table-compact-right td:first-child,
   .table-compact-right th:first-child {
     text-align: left;
+  }
+
+  .report-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .report-actions {
+    width: 100%;
+    justify-content: flex-start;
+    margin-left: 0;
+    flex-wrap: wrap;
   }
 
   .row-actions {
