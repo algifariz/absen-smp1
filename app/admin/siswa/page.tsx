@@ -285,6 +285,15 @@ export default function KelolaSiswaPage() {
     });
     if (ok) {
       showNotif(`${siswa.nama}: ${namaPelanggaran} (${poinPenalti} poin)`);
+      await supabase.from("pelanggaran_log").insert({
+        siswa_id: siswa.id,
+        nama: siswa.nama,
+        kelas: siswa.kelas,
+        nama_pelanggaran: namaPelanggaran,
+        poin_pelanggaran: poinPenalti,
+        tanggal: new Date().toISOString().slice(0, 10),
+        created_at: new Date().toISOString(),
+      });
     } else {
       showNotif("Gagal mencatat pelanggaran");
     }

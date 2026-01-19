@@ -161,6 +161,14 @@ export default function AbsensiPage() {
         const message = `${siswa.nama} berhasil absen!`;
         showNotif(`Sukses: ${message}`);
         setScanFeedback({ name: siswa.nama, message, ok: true });
+        await supabase.from("absensi_log").insert({
+          siswa_id: siswa.id,
+          nama: siswa.nama,
+          kelas: siswa.kelas,
+          barcode_id: siswa.barcode_id,
+          tanggal: today,
+          created_at: new Date().toISOString(),
+        });
       } else {
         const message = "Gagal mencatat absensi";
         showNotif(`Gagal: ${message}`);
