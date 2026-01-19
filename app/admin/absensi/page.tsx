@@ -37,10 +37,11 @@ export default function AbsensiPage() {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [scanFeedback, setScanFeedback] = useState<{ name: string; message: string; ok: boolean } | null>(null);
   const notifTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const scanCloseTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const qrScannerRef = useRef<Html5Qrcode | null>(null);
   const scannerRunningRef = useRef<boolean>(false);
   const processAbsensiRef = useRef<(barcodeId: string) => Promise<void>>(null!);
+  const lastScanRef = useRef<string | null>(null);
+  const lastScanAtRef = useRef<number>(0);
   const [todayDate] = useState<string>(getTodayDate());
   const isClientReady = todayDate !== "";
 
@@ -88,6 +89,14 @@ export default function AbsensiPage() {
   const showNotif = useCallback((message: string) => {
     setNotif(message);
   }, []);
+
+  useEffect(() => {
+    if (!scanFeedback) return;
+    const timer = setTimeout(() => {
+      setScanFeedback(null);
+    }, 2000);
+    return () => clearTimeout(timer);
+  }, [scanFeedback]);
 
   const refreshData = useCallback(async () => {
     setLoadError(null);
@@ -184,15 +193,13 @@ export default function AbsensiPage() {
       }
       setScanFeedback(null);
       setScanStatus("idle");
-      if (scanCloseTimeoutRef.current) {
-        clearTimeout(scanCloseTimeoutRef.current);
-        scanCloseTimeoutRef.current = null;
-      }
       return;
     }
 
     setScanFeedback(null);
     setScanStatus("scanning");
+    lastScanRef.current = null;
+    lastScanAtRef.current = 0;
 
     if (!navigator?.mediaDevices?.getUserMedia) {
       showNotif("Kamera tidak tersedia di perangkat ini");
@@ -217,15 +224,14 @@ export default function AbsensiPage() {
           { fps: 10, qrbox: { width: 260, height: 260 } },
           (decodedText) => {
             if (!decodedText) return;
+            const now = Date.now();
+            if (lastScanRef.current === decodedText && now - lastScanAtRef.current < 1500) {
+              return;
+            }
+            lastScanRef.current = decodedText;
+            lastScanAtRef.current = now;
             setScanStatus("success");
             processAbsensiRef.current(decodedText);
-            if (scannerRunningRef.current) {
-              scannerRunningRef.current = false;
-              scanner.stop().catch(() => undefined);
-            }
-            scanCloseTimeoutRef.current = setTimeout(() => {
-              setScanModalOpen(false);
-            }, 1500);
           },
           () => undefined,
         );
@@ -406,34 +412,6 @@ export default function AbsensiPage() {
                 }}
               >
                 {scanStatusLabel}
-              </div>
-            </div>
-            <div
-              className="rounded-2xl p-4 mb-6 mx-auto"
-              style={{
-                background: scanFeedback?.ok ? "rgba(16, 185, 129, 0.12)" : "rgba(148, 163, 184, 0.12)",
-                border: scanFeedback?.ok ? "1px solid rgba(16, 185, 129, 0.25)" : "1px solid rgba(148, 163, 184, 0.2)",
-                maxWidth: 420,
-              }}
-            >
-              <div className="flex items-center justify-between">
-                <div>
-                  <div className="font-semibold" style={{ fontSize: "1.05rem", color: "#0f172a" }}>
-                    {scanFeedback ? scanFeedback.name : "Menunggu scan..."}
-                  </div>
-                  <div style={{ fontSize: "0.9rem", color: "#0f172a", opacity: 0.7 }}>
-                    {scanFeedback ? scanFeedback.message : "Arahkan kamera ke barcode atau QR siswa"}
-                  </div>
-                </div>
-                <div style={{ fontSize: "1.1rem", fontWeight: 700, color: "#0f172a" }}>
-                  {scanFeedback
-                    ? scanFeedback.ok
-                      ? "OK"
-                      : "WARN"
-                    : scanStatus === "scanning"
-                      ? "SCAN"
-                      : "WAIT"}
-                </div>
               </div>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">

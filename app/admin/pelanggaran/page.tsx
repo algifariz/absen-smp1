@@ -19,6 +19,7 @@ export default function PelanggaranPage() {
   const [notif, setNotif] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [addModalOpen, setAddModalOpen] = useState(false);
 
   useEffect(() => {
     let isActive = true;
@@ -97,6 +98,7 @@ export default function PelanggaranPage() {
     if (!error) {
       setFormPelanggaranNama("");
       setFormPelanggaranPoin("");
+      setAddModalOpen(false);
       showNotif(`Pelanggaran "${nama}" (${poin}) ditambahkan`);
       refreshData();
     } else {
@@ -124,7 +126,7 @@ export default function PelanggaranPage() {
         <div className="glass-card rounded-2xl p-4 md:p-6 mb-4 md:mb-6 premium-shadow absensi-hero">
           <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
             <div>
-              <h1 className="font-black tracking-tight mb-2" style={{ fontSize: "2rem", color: "#0f172a" }}>
+              <h1 className="font-black tracking-tight mb-2" style={{ fontSize: "2rem", color: "#111827" }}>
                 Kelola Daftar Pelanggaran
               </h1>
               <p style={{ fontSize: "0.9rem", color: "#64748b" }}>
@@ -152,54 +154,16 @@ export default function PelanggaranPage() {
           </div>
         ) : null}
 
-        <article className="card">
+        <article className="card card--full">
           <div className="card__head">
             <div>
-              <h2 className="card__title">Tambah Pelanggaran</h2>
+              <h2 className="card__title">Daftar Pelanggaran</h2>
               <p className="card__desc">Isi nama pelanggaran dan poin negatif.</p>
             </div>
-            <span className="badge badge--red">Pelanggaran</span>
+            <button className="btn btn--danger" type="button" onClick={() => setAddModalOpen(true)}>
+              + Tambah Pelanggaran
+            </button>
           </div>
-
-          <form className="form" onSubmit={handleAddPelanggaran}>
-            <div className="field">
-              <label className="label" htmlFor="namaPelanggaran">
-                Nama Pelanggaran
-              </label>
-              <input
-                className="input"
-                id="namaPelanggaran"
-                placeholder="Contoh: Terlambat masuk kelas"
-                value={formPelanggaranNama}
-                onChange={(e) => setFormPelanggaranNama(e.target.value)}
-                required
-              />
-            </div>
-
-            <div className="field">
-              <label className="label" htmlFor="poinPelanggaran">
-                Poin (negatif)
-              </label>
-              <input
-                className="input"
-                id="poinPelanggaran"
-                type="number"
-                placeholder="-10"
-                value={formPelanggaranPoin}
-                onChange={(e) => setFormPelanggaranPoin(e.target.value)}
-                max={0}
-                required
-              />
-            </div>
-
-            <div className="actions">
-              <button className="btn btn--danger" type="submit" disabled={isLoading}>
-                Tambah Pelanggaran
-              </button>
-            </div>
-          </form>
-
-          <div className="divider" />
 
           <div className="list">
             {pelanggaranData.length === 0 ? (
@@ -214,8 +178,8 @@ export default function PelanggaranPage() {
                   <div className="right">
                     <span className="chip chip--red">{pelanggaran.poin_pelanggaran}</span>
                     <button
-                      className="icon-btn"
-                      title="Hapus"
+                      className={`icon-btn icon-btn--danger ${confirmDeletePelanggaranIds[pelanggaran.id] ? "is-confirm" : ""}`}
+                      title={confirmDeletePelanggaranIds[pelanggaran.id] ? "Klik untuk hapus" : "Hapus"}
                       type="button"
                       onClick={() => {
                         if (confirmDeletePelanggaranIds[pelanggaran.id]) {
@@ -229,7 +193,20 @@ export default function PelanggaranPage() {
                         }
                       }}
                     >
-                      {confirmDeletePelanggaranIds[pelanggaran.id] ? "Yakin?" : "Hapus"}
+                      {confirmDeletePelanggaranIds[pelanggaran.id] ? (
+                        <span className="icon-btn__label">Yakin?</span>
+                      ) : (
+                        <svg viewBox="0 0 24 24" aria-hidden="true">
+                          <path
+                            d="M6 7h12l-1 12H7L6 7Z"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="1.6"
+                            strokeLinejoin="round"
+                          />
+                          <path d="M9 7V5h6v2M10 11v5M14 11v5" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+                        </svg>
+                      )}
                     </button>
                   </div>
                 </div>
@@ -238,6 +215,63 @@ export default function PelanggaranPage() {
           </div>
         </article>
       </div>
+      <button className="fab-add" type="button" onClick={() => setAddModalOpen(true)} aria-label="Tambah pelanggaran">
+        +
+      </button>
+      {addModalOpen ? (
+        <div className="modal-overlay" onClick={() => setAddModalOpen(false)}>
+          <div className="glass-card modal-card" onClick={(e) => e.stopPropagation()}>
+            <div className="card__head">
+              <div>
+                <h2 className="card__title">Tambah Pelanggaran</h2>
+                <p className="card__desc">Isi nama pelanggaran dan poin negatif.</p>
+              </div>
+              <span className="badge badge--red">Pelanggaran</span>
+            </div>
+
+            <form className="form" onSubmit={handleAddPelanggaran}>
+              <div className="field">
+                <label className="label" htmlFor="namaPelanggaran">
+                  Nama Pelanggaran
+                </label>
+                <input
+                  className="input"
+                  id="namaPelanggaran"
+                  placeholder="Contoh: Terlambat masuk kelas"
+                  value={formPelanggaranNama}
+                  onChange={(e) => setFormPelanggaranNama(e.target.value)}
+                  required
+                />
+              </div>
+
+              <div className="field">
+                <label className="label" htmlFor="poinPelanggaran">
+                  Poin (negatif)
+                </label>
+                <input
+                  className="input"
+                  id="poinPelanggaran"
+                  type="number"
+                  placeholder="-10"
+                  value={formPelanggaranPoin}
+                  onChange={(e) => setFormPelanggaranPoin(e.target.value)}
+                  max={0}
+                  required
+                />
+              </div>
+
+              <div className="actions">
+                <button className="btn btn--danger" type="submit" disabled={isLoading}>
+                  Tambah Pelanggaran
+                </button>
+                <button className="btn btn--ghost" type="button" onClick={() => setAddModalOpen(false)}>
+                  Batal
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      ) : null}
       {notif ? (
         <div
           style={{

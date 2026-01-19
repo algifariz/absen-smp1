@@ -1,6 +1,7 @@
 ﻿"use client";
 
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import QRCode from "qrcode";
 import { supabase } from "@/lib/supabaseClient";
 
 type SiswaRecord = {
@@ -47,6 +48,9 @@ export default function KelolaSiswaPage() {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [todayDate] = useState<string>(getTodayDate());
   const [addModalOpen, setAddModalOpen] = useState(false);
+  const [barcodeModalOpen, setBarcodeModalOpen] = useState(false);
+  const [barcodeTarget, setBarcodeTarget] = useState<SiswaRecord | null>(null);
+  const [qrDataUrl, setQrDataUrl] = useState<string>("");
 
   // Form State
   const [formNama, setFormNama] = useState("");
@@ -117,6 +121,20 @@ export default function KelolaSiswaPage() {
     }, 50);
     return () => clearTimeout(timer);
   }, [addModalOpen]);
+
+  useEffect(() => {
+    if (barcodeModalOpen && barcodeTarget) {
+      QRCode.toDataURL(barcodeTarget.barcode_id, {
+        width: 260,
+        margin: 1,
+        color: { dark: "#0f172a", light: "#ffffff" },
+      })
+        .then((url: string) => setQrDataUrl(url))
+        .catch(() => setQrDataUrl(""));
+    } else {
+      setQrDataUrl("");
+    }
+  }, [barcodeModalOpen, barcodeTarget]);
 
   const showNotif = useCallback((message: string) => {
     setNotif(message);
@@ -389,9 +407,9 @@ export default function KelolaSiswaPage() {
                             <Fragment key={siswa.id}>
                               <tr>
                                 <td data-label="Nama">
-                                  <div className="w-full text-right">
+                                  <div className="w-full text-right text-left">
                                     <input
-                                      className="table-input text-right"
+                                      className="table-input text-right text-left"
                                       value={editingNama[siswa.id] ?? siswa.nama}
                                       onChange={(e) =>
                                         setEditingNama((prev) => ({
@@ -439,6 +457,27 @@ export default function KelolaSiswaPage() {
                                         </svg>
                                       </span>
                                       Absensi
+                                    </button>
+                                    <button
+                                      className="btn btn--ghost btn--sm btn--icon"
+                                      type="button"
+                                      onClick={() => {
+                                        setBarcodeTarget(siswa);
+                                        setBarcodeModalOpen(true);
+                                      }}
+                                    >
+                                      <span className="btn__icon" aria-hidden="true">
+                                        <svg viewBox="0 0 24 24">
+                                          <path
+                                            d="M5 6h14v4H5V6Zm0 8h14v4H5v-4Z"
+                                            fill="none"
+                                            stroke="currentColor"
+                                            strokeWidth="1.6"
+                                          />
+                                          <path d="M8 8h2M8 16h2M14 8h2M14 16h2" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+                                        </svg>
+                                      </span>
+                                      Barcode
                                     </button>
                                     <button
                                       className="btn btn--primary btn--sm btn--icon"
@@ -629,6 +668,48 @@ export default function KelolaSiswaPage() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      ) : null}
+      {barcodeModalOpen && barcodeTarget ? (
+        <div className="modal-overlay" onClick={() => setBarcodeModalOpen(false)}>
+          <div className="glass-card modal-card" onClick={(e) => e.stopPropagation()}>
+            <div className="card__head">
+              <div>
+                <h2 className="card__title">Barcode Siswa</h2>
+                <p className="card__desc">{barcodeTarget.nama}</p>
+              </div>
+              <span className="badge badge--blue">{barcodeTarget.kelas || "-"}</span>
+            </div>
+            <div className="glass-card rounded-2xl p-4">
+              {qrDataUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={qrDataUrl} alt="QR Code" style={{ width: "100%", maxWidth: 240, margin: "0 auto" }} />
+              ) : (
+                <div className="muted">QR code tidak tersedia.</div>
+              )}
+              <div className="text-center mt-3 font-semibold">{barcodeTarget.barcode_id}</div>
+            </div>
+            <div className="actions">
+              <button
+                className="btn btn--primary"
+                type="button"
+                onClick={() => {
+                  if (!qrDataUrl) return;
+                  const link = document.createElement("a");
+                  link.download = `QR_${barcodeTarget.nama.replace(/\s+/g, "_")}_${barcodeTarget.barcode_id}.png`;
+                  link.href = qrDataUrl;
+                  document.body.appendChild(link);
+                  link.click();
+                  document.body.removeChild(link);
+                }}
+              >
+                Download QR
+              </button>
+              <button className="btn btn--ghost" type="button" onClick={() => setBarcodeModalOpen(false)}>
+                Tutup
+              </button>
+            </div>
           </div>
         </div>
       ) : null}
