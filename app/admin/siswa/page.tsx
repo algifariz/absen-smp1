@@ -384,79 +384,40 @@ export default function KelolaSiswaPage() {
 
     const qrImg = new Image();
     qrImg.onload = () => {
-      canvas.width = 1000;
-      canvas.height = 600;
+      canvas.width = 800;
+      canvas.height = 1200;
 
-      const gradient = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
-      gradient.addColorStop(0, "#0b1220");
-      gradient.addColorStop(0.5, "#0f1b3d");
-      gradient.addColorStop(1, "#0b1026");
-      ctx.fillStyle = gradient;
+      ctx.fillStyle = "#f8fafc";
       ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-      drawRoundedRect(ctx, 20, 20, canvas.width - 40, canvas.height - 40, 28);
+      drawRoundedRect(ctx, 24, 24, canvas.width - 48, canvas.height - 48, 28);
+      ctx.strokeStyle = "#e2e8f0";
       ctx.lineWidth = 2;
-      ctx.strokeStyle = "rgba(255,255,255,0.12)";
       ctx.stroke();
 
-      ctx.fillStyle = "rgba(16, 185, 129, 0.25)";
-      ctx.beginPath();
-      ctx.moveTo(canvas.width - 200, canvas.height - 120);
-      ctx.arcTo(canvas.width - 40, canvas.height - 120, canvas.width - 40, canvas.height - 40, 130);
-      ctx.lineTo(canvas.width - 40, canvas.height - 40);
-      ctx.lineTo(canvas.width - 200, canvas.height - 40);
-      ctx.closePath();
+      ctx.fillStyle = "#1d4ed8";
+      drawRoundedRect(ctx, 40, 40, 80, 80, 16);
+      drawRoundedRect(ctx, canvas.width - 120, 40, 80, 80, 16);
+      drawRoundedRect(ctx, 40, canvas.height - 120, 80, 80, 16);
+      drawRoundedRect(ctx, canvas.width - 120, canvas.height - 120, 80, 80, 16);
+
+      ctx.fillStyle = "#0f172a";
+      ctx.font = "700 24px Arial";
+      ctx.textAlign = "center";
+      ctx.fillText("ABSENSI SMP", canvas.width / 2, 130);
+
+      const qrSize = 220;
+      const qrX = (canvas.width - qrSize) / 2;
+      const qrY = 240;
+      ctx.save();
+      ctx.translate(canvas.width / 2, qrY + qrSize / 2);
+      ctx.rotate(Math.PI / 4);
+      drawRoundedRect(ctx, -140, -140, 280, 280, 22);
+      ctx.fillStyle = "#1d4ed8";
       ctx.fill();
-
-      ctx.fillStyle = "#ffffff";
-      ctx.font = "600 18px Arial";
-      ctx.textAlign = "right";
-      ctx.fillText("Absensi SMP", canvas.width - 50, 70);
-
-      ctx.textAlign = "left";
-      ctx.font = "700 44px Arial";
-      ctx.fillText(siswa.nama.toUpperCase(), 70, 140);
-
-      const roleText = `Siswa Kelas ${siswa.kelas || "-"}`;
-      ctx.font = "600 16px Arial";
-      const pillWidth = ctx.measureText(roleText).width + 26;
-      drawRoundedRect(ctx, 70, 158, pillWidth, 30, 15);
-      ctx.fillStyle = "#dcfce7";
-      ctx.fill();
-      ctx.fillStyle = "#166534";
-      ctx.fillText(roleText, 83, 179);
-
-      const idLeft = 70;
-      const idTop = 240;
-      const idMaxWidth = 520;
-      ctx.textAlign = "left";
-      ctx.fillStyle = "#cbd5f5";
-      ctx.font = "600 14px Arial";
-      ctx.fillText("ID NO", idLeft, idTop - 12);
-      ctx.font = "700 18px Courier New";
-      ctx.fillStyle = "#ffffff";
-      const idValue = siswa.barcode_id;
-      const idText = ctx.measureText(idValue).width > idMaxWidth
-        ? `${idValue.slice(0, 4)}-${idValue.slice(4)}`
-        : idValue;
-      ctx.fillText(idText, idLeft, idTop);
-      ctx.fillStyle = "#94a3b8";
-      ctx.font = "500 12px Arial";
-      ctx.fillText("Scan barcode untuk absensi", idLeft, idTop + 20);
-
-      const avatarX = canvas.width - 320;
-      const avatarY = 110;
-      const avatarSize = 210;
-      drawRoundedRect(ctx, avatarX, avatarY, avatarSize, avatarSize, 24);
-      ctx.fillStyle = "rgba(255,255,255,0.08)";
-      ctx.fill();
-      ctx.strokeStyle = "rgba(255,255,255,0.35)";
-      ctx.stroke();
+      ctx.restore();
 
       if (qrDataUrl) {
-        const qrSize = 170;
-        const qrX = avatarX + (avatarSize - qrSize) / 2;
-        const qrY = avatarY + (avatarSize - qrSize) / 2;
         drawRoundedRect(ctx, qrX - 16, qrY - 16, qrSize + 32, qrSize + 32, 20);
         ctx.fillStyle = "#ffffff";
         ctx.fill();
@@ -465,17 +426,37 @@ export default function KelolaSiswaPage() {
         ctx.stroke();
         ctx.drawImage(qrImg, qrX, qrY, qrSize, qrSize);
       } else {
-        ctx.beginPath();
-        ctx.arc(avatarX + avatarSize / 2, avatarY + avatarSize / 2, 90, 0, Math.PI * 2);
-        ctx.fillStyle = "rgba(255,255,255,0.18)";
-        ctx.fill();
-        ctx.fillStyle = "#ffffff";
-        ctx.font = "800 58px Arial";
+        ctx.fillStyle = "#e2e8f0";
+        ctx.fillRect(qrX, qrY, qrSize, qrSize);
+        ctx.fillStyle = "#94a3b8";
+        ctx.font = "600 18px Arial";
         ctx.textAlign = "center";
-        ctx.fillText(getInitials(siswa.nama), avatarX + avatarSize / 2, avatarY + avatarSize / 2 + 18);
+        ctx.fillText(getInitials(siswa.nama), canvas.width / 2, qrY + qrSize / 2 + 8);
       }
 
-      ctx.textAlign = "left";
+      ctx.textAlign = "center";
+      ctx.fillStyle = "#0f172a";
+      ctx.font = "700 28px Arial";
+      ctx.fillText(siswa.nama.toUpperCase(), canvas.width / 2, 580);
+
+      const roleText = `Siswa Kelas ${siswa.kelas || "-"}`;
+      ctx.font = "600 16px Arial";
+      drawRoundedRect(ctx, canvas.width / 2 - 110, 604, 220, 32, 16);
+      ctx.fillStyle = "#dcfce7";
+      ctx.fill();
+      ctx.fillStyle = "#166534";
+      ctx.fillText(roleText, canvas.width / 2, 626);
+
+      ctx.fillStyle = "#0f172a";
+      ctx.font = "600 14px Courier New";
+      ctx.fillText("ID NO", canvas.width / 2, 690);
+      ctx.font = "700 18px Courier New";
+      ctx.fillText(siswa.barcode_id, canvas.width / 2, 718);
+
+      ctx.fillStyle = "#64748b";
+      ctx.font = "500 12px Arial";
+      ctx.fillText("Scan QR untuk absensi", canvas.width / 2, 744);
+
       ctx.fillStyle = "#94a3b8";
       ctx.font = "500 12px Arial";
       const tanggal = new Date(siswa.dibuat).toLocaleDateString("id-ID", {
@@ -483,7 +464,8 @@ export default function KelolaSiswaPage() {
         month: "long",
         year: "numeric",
       });
-      ctx.fillText(`Terdaftar: ${tanggal}`, 70, canvas.height - 46);
+      ctx.textAlign = "left";
+      ctx.fillText(`Terdaftar: ${tanggal}`, 60, canvas.height - 60);
 
       ctx.textAlign = "right";
 

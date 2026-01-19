@@ -90,6 +90,72 @@ export default function AbsensiPage() {
     setNotif(message);
   }, []);
 
+  const playSuccessSound = useCallback(() => {
+    try {
+      const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+      if (!AudioCtx) return;
+      const ctx = new AudioCtx();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = "sine";
+      osc.frequency.value = 880;
+      gain.gain.value = 0.3;
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start();
+      osc.stop(ctx.currentTime + 0.18);
+      setTimeout(() => {
+        ctx.close().catch(() => undefined);
+      }, 250);
+    } catch {
+      // ignore audio errors
+    }
+  }, []);
+
+  const playWarningSound = useCallback(() => {
+    try {
+      const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+      if (!AudioCtx) return;
+      const ctx = new AudioCtx();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = "triangle";
+      osc.frequency.value = 520;
+      gain.gain.value = 0.28;
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start();
+      osc.stop(ctx.currentTime + 0.22);
+      setTimeout(() => {
+        ctx.close().catch(() => undefined);
+      }, 260);
+    } catch {
+      // ignore audio errors
+    }
+  }, []);
+
+  const playErrorSound = useCallback(() => {
+    try {
+      const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+      if (!AudioCtx) return;
+      const ctx = new AudioCtx();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = "square";
+      osc.frequency.value = 320;
+      gain.gain.value = 0.32;
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start();
+      osc.stop(ctx.currentTime + 0.28);
+      setTimeout(() => {
+        ctx.close().catch(() => undefined);
+      }, 320);
+    } catch {
+      // ignore audio errors
+    }
+  }, []);
+
   useEffect(() => {
     if (!scanFeedback) return;
     const timer = setTimeout(() => {
@@ -142,6 +208,7 @@ export default function AbsensiPage() {
         const message = "Barcode tidak ditemukan!";
         showNotif(`Gagal: ${message}`);
         setScanFeedback({ name: "Tidak dikenal", message, ok: false });
+        playErrorSound();
         return;
       }
       const today = getTodayDate();
@@ -149,6 +216,7 @@ export default function AbsensiPage() {
         const message = `${siswa.nama} sudah absen hari ini!`;
         showNotif(`Perhatian: ${message}`);
         setScanFeedback({ name: siswa.nama, message, ok: false });
+        playWarningSound();
         return;
       }
 
@@ -161,6 +229,7 @@ export default function AbsensiPage() {
         const message = `${siswa.nama} berhasil absen!`;
         showNotif(`Sukses: ${message}`);
         setScanFeedback({ name: siswa.nama, message, ok: true });
+        playSuccessSound();
         await supabase.from("absensi_log").insert({
           siswa_id: siswa.id,
           nama: siswa.nama,
@@ -174,9 +243,10 @@ export default function AbsensiPage() {
         const message = "Gagal mencatat absensi";
         showNotif(`Gagal: ${message}`);
         setScanFeedback({ name: siswa.nama, message, ok: false });
+        playErrorSound();
       }
     },
-    [siswaData, showNotif, handleUpdateSiswa],
+    [siswaData, showNotif, handleUpdateSiswa, playSuccessSound, playWarningSound, playErrorSound],
   );
 
   useEffect(() => {
