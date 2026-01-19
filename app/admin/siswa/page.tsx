@@ -310,7 +310,7 @@ export default function KelolaSiswaPage() {
               <h1 className="font-black tracking-tight mb-2" style={{ fontSize: "2rem", color: "#0f172a" }}>
                 Kelola Siswa
               </h1>
-              <p style={{ fontSize: "0.9rem", color: "#64748b" }}>
+              <p style={{ fontSize: "0.9rem", color: "#0f172a" }}>
                 Aksi cepat: absensi, tambah poin, catat pelanggaran.
               </p>
             </div>
@@ -339,7 +339,9 @@ export default function KelolaSiswaPage() {
                 <div className="card__head">
                   <div>
                     <h2 className="card__title">Daftar Siswa</h2>
-                    <p className="card__desc">Gunakan filter kelas untuk mempercepat pencarian.</p>
+                    <p className="card__desc" style={{ color: "#0f172a" }}>
+                      Gunakan filter kelas untuk mempercepat pencarian.
+                    </p>
                   </div>
                   <button className="btn btn--primary" type="button" onClick={() => setAddModalOpen(true)}>
                     + Tambah Siswa

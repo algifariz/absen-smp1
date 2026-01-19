@@ -32,7 +32,7 @@ body {
 .admin-app {
   --admin-bg: #f8fafc;
   --admin-card: #ffffff;
-  --admin-muted: #64748b;
+  --admin-muted: #111827;
   --admin-border: rgba(148, 163, 184, 0.3);
   display: grid;
   grid-template-columns: minmax(220px, 280px) 1fr;
@@ -65,6 +65,11 @@ body {
 .absensi-hero {
   border: 1px solid rgba(15, 23, 42, 0.08);
   background: linear-gradient(140deg, rgba(255, 255, 255, 0.98), rgba(241, 245, 249, 0.9));
+}
+
+.absensi-hero p {
+  color: #0f172a;
+  opacity: 1;
 }
 
 .absensi-card {
@@ -223,7 +228,7 @@ body {
 }
 
 .page-subtitle {
-  color: #111827;
+  color: var(--admin-muted);
   font-size: 0.9rem;
 }
 
@@ -288,7 +293,7 @@ body {
 }
 
 .card__desc {
-  color: #111827;
+  color: #0f172a;
   font-size: 0.85rem;
 }
 
@@ -427,7 +432,7 @@ body {
 
 .list__meta {
   font-size: 0.75rem;
-  color: #111827;
+  color: var(--admin-muted);
 }
 
 .right {
@@ -455,7 +460,7 @@ body {
 
 .chip--muted {
   background: rgba(148, 163, 184, 0.2);
-  color: #475569;
+  color: var(--admin-muted);
 }
 
 .pill {
@@ -518,7 +523,7 @@ body {
 
 .table-empty {
   text-align: center;
-  color: #111827;
+  color: var(--admin-muted);
 }
 
 .table-panel td {
@@ -690,7 +695,7 @@ body {
 }
 
 .muted {
-  color: #111827;
+  color: var(--admin-muted);
   font-size: 0.8rem;
 }
 
@@ -742,7 +747,7 @@ body {
     font-weight: 700;
     text-transform: uppercase;
     font-size: 0.7rem;
-    color: #111827;
+    color: var(--admin-muted);
     text-align: left;
     margin-bottom: 6px;
     margin-right: 0;
@@ -1179,7 +1184,7 @@ body {
 
 .modal-card .card__desc {
   font-size: 0.95rem;
-  color: #111827;
+  color: var(--admin-muted);
 }
 
 .modal-card .input {
