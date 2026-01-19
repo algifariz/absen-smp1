@@ -130,13 +130,13 @@ export default function PoinPage() {
   return (
     <>
       <div className="absensi-shell fade-in">
-        <div className="glass-card rounded-2xl p-4 md:p-6 mb-4 md:mb-6 premium-shadow absensi-hero">
+        <div className="glass-card rounded-2xl p-4 md:p-6 mb-4 md:mb-6 premium-shadow absensi-hero dashboard-hero">
           <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
             <div>
               <h1 className="font-black tracking-tight mb-2" style={{ fontSize: "2rem", color: "#0f172a" }}>
                 Tambah Poin Custom
               </h1>
-              <p style={{ fontSize: "0.9rem", color: "#64748b" }}>
+              <p style={{ fontSize: "0.9rem", color: "#0f172a" }}>
                 Tambahkan poin ke siswa tertentu (reward atau penalty).
               </p>
             </div>

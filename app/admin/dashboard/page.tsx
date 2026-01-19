@@ -127,7 +127,7 @@ export default function DashboardPage() {
       }
 
       const pelanggaranResp = await supabase
-        .from("pelanggaran_log")
+        .from("pelanggaran_siswa_log")
         .select("id,tanggal,kelas")
         .gte("tanggal", dates[0])
         .lte("tanggal", dates[dates.length - 1]);
@@ -145,8 +145,8 @@ export default function DashboardPage() {
         .limit(5);
       if (siswaError) throw siswaError;
 
-      const absensiSeriesData = buildSeries(dates, absensiLogs);
-      const pelanggaranSeriesData = buildSeries(dates, pelanggaranLogs);
+      let absensiSeriesData = buildSeries(dates, absensiLogs);
+      let pelanggaranSeriesData = buildSeries(dates, pelanggaranLogs);
       const kelasAbsensiMap = new Map<string, number>();
       const kelasPelanggaranMap = new Map<string, number>();
 
@@ -174,12 +174,44 @@ export default function DashboardPage() {
           .select("status_hari_ini,absen_hari_ini")
           .eq("type", "siswa")
           .eq("absen_hari_ini", today);
-        if (!siswaTodayError) {
-          const rows = (siswaToday as { status_hari_ini: string | null }[]) || [];
-          setHadirHariIni(rows.filter((row) => row.status_hari_ini === "hadir").length);
-          setIzinHariIni(rows.filter((row) => row.status_hari_ini === "izin").length);
-          setSakitHariIni(rows.filter((row) => row.status_hari_ini === "sakit").length);
-          setAlfaHariIni(rows.filter((row) => row.status_hari_ini === "alfa").length);
+        const rows = !siswaTodayError ? ((siswaToday as { status_hari_ini: string | null }[]) || []) : [];
+        setHadirHariIni(rows.filter((row) => row.status_hari_ini === "hadir").length);
+        setIzinHariIni(rows.filter((row) => row.status_hari_ini === "izin").length);
+        setSakitHariIni(rows.filter((row) => row.status_hari_ini === "sakit").length);
+        setAlfaHariIni(rows.filter((row) => row.status_hari_ini === "alfa").length);
+        const { data: siswaRange, error: siswaRangeError } = await supabase
+          .from("records")
+          .select("absen_hari_ini,kelas")
+          .eq("type", "siswa")
+          .gte("absen_hari_ini", dates[0])
+          .lte("absen_hari_ini", dates[dates.length - 1]);
+        if (!siswaRangeError) {
+          const rangeLogs = (siswaRange as { absen_hari_ini: string | null; kelas: string | null }[]).flatMap((row) =>
+            row.absen_hari_ini ? [{ tanggal: String(row.absen_hari_ini), kelas: row.kelas }] : [],
+          );
+          absensiSeriesData = buildSeries(dates, rangeLogs);
+          setAbsensiSeries(absensiSeriesData);
+          rangeLogs.forEach((row) => {
+            if (!row.kelas) return;
+            kelasAbsensiMap.set(row.kelas, (kelasAbsensiMap.get(row.kelas) || 0) + 1);
+          });
+        }
+      }
+
+      if (!pelanggaranLogOk || pelanggaranLogs.length === 0) {
+        const { data: pelanggaranAlt, error: pelanggaranAltError } = await supabase
+          .from("pelanggaran_log")
+          .select("id,tanggal,kelas")
+          .gte("tanggal", dates[0])
+          .lte("tanggal", dates[dates.length - 1]);
+        if (!pelanggaranAltError) {
+          pelanggaranLogs = (pelanggaranAlt as PelanggaranLog[]) || [];
+          pelanggaranSeriesData = buildSeries(dates, pelanggaranLogs);
+          setPelanggaranSeries(pelanggaranSeriesData);
+          pelanggaranLogs.forEach((row) => {
+            if (!row.kelas) return;
+            kelasPelanggaranMap.set(row.kelas, (kelasPelanggaranMap.get(row.kelas) || 0) + 1);
+          });
         }
       }
       setTopKelasAbsensi(
@@ -235,8 +267,8 @@ export default function DashboardPage() {
 
   return (
     <div className="absensi-shell fade-in">
-      <div className="glass-card rounded-2xl p-4 md:p-6 mb-4 md:mb-6 premium-shadow absensi-hero">
-        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+      <div className="glass-card rounded-2xl p-5 md:p-6 mb-6 premium-shadow dashboard-hero">
+        <div className="dashboard-hero__content">
           <div>
             <h1 className="font-black tracking-tight mb-2" style={{ fontSize: "2rem", color: "#0f172a" }}>
               Dashboard Realtime
@@ -245,13 +277,15 @@ export default function DashboardPage() {
               Ringkasan absensi, pelanggaran, dan siswa terbaik.
             </p>
           </div>
-          <button className="btn btn--primary" type="button" onClick={fetchData} disabled={isLoading}>
-            {isLoading ? "Memuat..." : "Refresh"}
-          </button>
+          <div className="dashboard-hero__actions">
+            <button className="btn btn--primary" type="button" onClick={fetchData} disabled={isLoading}>
+              {isLoading ? "Memuat..." : "Refresh"}
+            </button>
+          </div>
         </div>
       </div>
 
-      {loadError ? <div className="glass-card rounded-2xl p-4 mb-4">{loadError}</div> : null}
+      {loadError ? <div className="glass-card rounded-2xl p-4 mb-6 dashboard-alert">{loadError}</div> : null}
 
       <div className="admin-grid dashboard-grid">
         <div className="card dashboard-card dashboard-card--metric">

@@ -227,12 +227,15 @@ export default function KelolaSiswaPage() {
       .delete()
       .eq("id", siswa.id)
       .eq("type", "siswa");
-    if (!error) {
-      showNotif(`${siswa.nama} telah dihapus`);
-      refreshData();
-    } else {
+    if (error) {
       showNotif("Gagal menghapus");
+      return;
     }
+
+    await supabase.from("absensi_log").delete().eq("siswa_id", siswa.id);
+    await supabase.from("pelanggaran_log").delete().eq("siswa_id", siswa.id);
+    showNotif(`${siswa.nama} telah dihapus`);
+    refreshData();
   };
 
   const handleSetHadir = async (siswa: SiswaRecord) => {
@@ -286,7 +289,7 @@ export default function KelolaSiswaPage() {
     });
     if (ok) {
       showNotif(`${siswa.nama}: ${namaPelanggaran} (${poinPenalti} poin)`);
-      await supabase.from("pelanggaran_log").insert({
+      const { error: logError } = await supabase.from("pelanggaran_siswa_log").insert({
         siswa_id: siswa.id,
         nama: siswa.nama,
         kelas: siswa.kelas,
@@ -296,6 +299,9 @@ export default function KelolaSiswaPage() {
         tanggal: new Date().toISOString().slice(0, 10),
         created_at: new Date().toISOString(),
       });
+      if (logError) {
+        showNotif("Pelanggaran tercatat, tetapi gagal simpan ke log laporan");
+      }
     } else {
       showNotif("Gagal mencatat pelanggaran");
     }
@@ -340,7 +346,7 @@ export default function KelolaSiswaPage() {
   return (
     <>
       <div className="absensi-shell fade-in">
-        <div className="glass-card rounded-2xl p-4 md:p-6 mb-4 md:mb-6 premium-shadow absensi-hero">
+        <div className="glass-card rounded-2xl p-4 md:p-6 mb-4 md:mb-6 premium-shadow absensi-hero dashboard-hero">
           <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
             <div>
               <h1 className="font-black tracking-tight mb-2" style={{ fontSize: "2rem", color: "#0f172a" }}>

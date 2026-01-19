@@ -79,6 +79,7 @@ export default function LaporanPage() {
   const [pageAbsensi, setPageAbsensi] = useState(1);
   const [pagePelanggaran, setPagePelanggaran] = useState(1);
   const pageSize = 5;
+  const [showAllPelanggaran, setShowAllPelanggaran] = useState(false);
 
   useEffect(() => {
     const start = startOfRange(range);
@@ -108,7 +109,7 @@ export default function LaporanPage() {
       }
 
       const pelanggaranResp = await supabase
-        .from("pelanggaran_log")
+        .from("pelanggaran_siswa_log")
         .select("*")
         .gte("tanggal", fromDate)
         .lte("tanggal", toDate)
@@ -140,6 +141,18 @@ export default function LaporanPage() {
             tanggal: String(row.absen_hari_ini || ""),
             created_at: String(row.created_at || new Date().toISOString()),
           }));
+        }
+      }
+
+      if (!pelanggaranOk || pelanggaranRows.length === 0) {
+        const { data: pelanggaranAlt, error: pelanggaranAltError } = await supabase
+          .from("pelanggaran_log")
+          .select("*")
+          .gte("tanggal", fromDate)
+          .lte("tanggal", toDate)
+          .order("tanggal", { ascending: false });
+        if (!pelanggaranAltError) {
+          pelanggaranRows = (pelanggaranAlt as PelanggaranLog[]) || [];
         }
       }
 
@@ -203,6 +216,39 @@ export default function LaporanPage() {
       fetchData();
     } catch {
       setLoadError("Gagal sinkronisasi absensi. Periksa data siswa.");
+    } finally {
+      setIsLoading(false);
+    }
+  }, [fetchData, fromDate, toDate]);
+
+  const handleSyncPelanggaran = useCallback(async () => {
+    setIsLoading(true);
+    setLoadError(null);
+    try {
+      const { data: pelanggaranMaster, error: pelanggaranError } = await supabase
+        .from("records")
+        .select("id,nama_pelanggaran,poin_pelanggaran,created_at")
+        .eq("type", "pelanggaran")
+        .gte("created_at", `${fromDate}T00:00:00.000Z`)
+        .lte("created_at", `${toDate}T23:59:59.999Z`);
+      if (pelanggaranError) throw pelanggaranError;
+
+      if ((pelanggaranMaster || []).length > 0) {
+        const inserts = (pelanggaranMaster || []).map((row) => ({
+          siswa_id: row.id,
+          nama: row.nama_pelanggaran || "-",
+          kelas: "-",
+          nama_pelanggaran: row.nama_pelanggaran || "-",
+          poin_pelanggaran: row.poin_pelanggaran || 0,
+          status_hari_ini: "-",
+          tanggal: String(row.created_at || "").slice(0, 10),
+          created_at: row.created_at || new Date().toISOString(),
+        }));
+        await supabase.from("pelanggaran_log").insert(inserts);
+      }
+      fetchData();
+    } catch {
+      setLoadError("Gagal sinkronisasi pelanggaran. Periksa data master.");
     } finally {
       setIsLoading(false);
     }
@@ -278,6 +324,7 @@ export default function LaporanPage() {
   useEffect(() => {
     setPageAbsensi(1);
     setPagePelanggaran(1);
+    setShowAllPelanggaran(false);
   }, [fromDate, toDate, search, selectedKelas]);
 
   const absensiTotalPages = Math.max(1, Math.ceil(filteredAbsensi.length / pageSize));
@@ -289,9 +336,10 @@ export default function LaporanPage() {
   }, [filteredAbsensi, pageAbsensi]);
 
   const pelanggaranPageData = useMemo(() => {
+    if (showAllPelanggaran) return filteredPelanggaran;
     const start = (pagePelanggaran - 1) * pageSize;
     return filteredPelanggaran.slice(start, start + pageSize);
-  }, [filteredPelanggaran, pagePelanggaran]);
+  }, [filteredPelanggaran, pagePelanggaran, showAllPelanggaran]);
 
   const kelasOptions = useMemo(() => {
     const kelasSet = new Set<string>();
@@ -497,6 +545,9 @@ export default function LaporanPage() {
           <button className="btn btn--ghost" type="button" onClick={handleSyncAbsensi} disabled={isLoading}>
             Sinkronisasi Absensi
           </button>
+          <button className="btn btn--ghost" type="button" onClick={handleSyncPelanggaran} disabled={isLoading}>
+            Sinkronisasi Pelanggaran
+          </button>
         </div>
 
         {loadError ? <div className="muted">{loadError}</div> : null}
@@ -584,6 +635,13 @@ export default function LaporanPage() {
               <button className="btn btn--danger btn--sm" type="button" aria-disabled="true" disabled>
                 Download PDF
               </button>
+              <button
+                className="btn btn--ghost btn--sm"
+                type="button"
+                onClick={() => setShowAllPelanggaran((prev) => !prev)}
+              >
+                {showAllPelanggaran ? "Pagination" : "Tampilkan Semua"}
+              </button>
             </div>
           </div>
           <div className="table-wrap">
@@ -624,7 +682,7 @@ export default function LaporanPage() {
               </tbody>
             </table>
           </div>
-          {pelanggaranTotalPages > 1 ? (
+          {!showAllPelanggaran && pelanggaranTotalPages > 1 ? (
             <div className="segmented" aria-label="Pagination pelanggaran">
               {Array.from({ length: pelanggaranTotalPages }, (_, idx) => {
                 const page = idx + 1;

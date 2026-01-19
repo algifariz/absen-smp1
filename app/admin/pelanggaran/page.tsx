@@ -123,13 +123,13 @@ export default function PelanggaranPage() {
   return (
     <>
       <div className="absensi-shell fade-in">
-        <div className="glass-card rounded-2xl p-4 md:p-6 mb-4 md:mb-6 premium-shadow absensi-hero">
+        <div className="glass-card rounded-2xl p-4 md:p-6 mb-4 md:mb-6 premium-shadow absensi-hero dashboard-hero">
           <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
             <div>
               <h1 className="font-black tracking-tight mb-2" style={{ fontSize: "2rem", color: "#111827" }}>
                 Kelola Daftar Pelanggaran
               </h1>
-              <p style={{ fontSize: "0.9rem", color: "#64748b" }}>
+              <p style={{ fontSize: "0.9rem", color: "#0f172a" }}>
                 Tambah dan atur jenis pelanggaran beserta poinnya.
               </p>
             </div>
