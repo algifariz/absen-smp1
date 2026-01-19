@@ -421,50 +421,92 @@ export default function KelolaSiswaPage() {
                                   </span>
                                 </td>
                                 <td className="td-right" data-label="Aksi">
-                                  <button
-                                    className="btn btn--ghost btn--sm"
-                                    type="button"
-                                    onClick={() => processAbsensi(siswa.barcode_id)}
-                                  >
-                                    Absensi
-                                  </button>
-                                  <button
-                                    className="btn btn--primary btn--sm"
-                                    type="button"
-                                    onClick={() => handlePlusPoin(siswa)}
-                                  >
-                                    + Poin
-                                  </button>
-                                  <button
-                                    className="btn btn--danger btn--sm"
-                                    type="button"
-                                    onClick={() => {
-                                      setConfirmDeleteIds((prev) => ({
-                                        ...prev,
-                                        [`panel-${siswa.id}`]: !prev[`panel-${siswa.id}`],
-                                      }));
-                                    }}
-                                  >
-                                    Pelanggaran
-                                  </button>
-                                  <button
-                                    className="icon-btn"
-                                    title="Hapus"
-                                    type="button"
-                                    onClick={() => {
-                                      if (confirmDeleteIds[siswa.id]) {
-                                        handleDeleteSiswa(siswa);
-                                        setConfirmDeleteIds((prev) => ({ ...prev, [siswa.id]: false }));
-                                      } else {
-                                        setConfirmDeleteIds((prev) => ({ ...prev, [siswa.id]: true }));
-                                        setTimeout(() => {
+                                  <div className="row-actions">
+                                    <button
+                                      className="btn btn--ghost btn--sm btn--icon"
+                                      type="button"
+                                      onClick={() => processAbsensi(siswa.barcode_id)}
+                                    >
+                                      <span className="btn__icon" aria-hidden="true">
+                                        <svg viewBox="0 0 24 24">
+                                          <path
+                                            d="M5 7.5h14a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2Z"
+                                            fill="none"
+                                            stroke="currentColor"
+                                            strokeWidth="1.6"
+                                          />
+                                          <path d="M8 12h8" fill="none" stroke="currentColor" strokeWidth="1.6" />
+                                        </svg>
+                                      </span>
+                                      Absensi
+                                    </button>
+                                    <button
+                                      className="btn btn--primary btn--sm btn--icon"
+                                      type="button"
+                                      onClick={() => handlePlusPoin(siswa)}
+                                    >
+                                      <span className="btn__icon" aria-hidden="true">
+                                        <svg viewBox="0 0 24 24">
+                                          <path d="M12 5v14M5 12h14" fill="none" stroke="currentColor" strokeWidth="1.8" />
+                                        </svg>
+                                      </span>
+                                      + Poin
+                                    </button>
+                                    <button
+                                      className="btn btn--danger btn--sm btn--icon"
+                                      type="button"
+                                      onClick={() => {
+                                        setConfirmDeleteIds((prev) => ({
+                                          ...prev,
+                                          [`panel-${siswa.id}`]: !prev[`panel-${siswa.id}`],
+                                        }));
+                                      }}
+                                    >
+                                      <span className="btn__icon" aria-hidden="true">
+                                        <svg viewBox="0 0 24 24">
+                                          <path
+                                            d="M12 3.5 21 19.5H3L12 3.5Z"
+                                            fill="none"
+                                            stroke="currentColor"
+                                            strokeWidth="1.6"
+                                          />
+                                          <path d="M12 9v5M12 17.2h.01" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+                                        </svg>
+                                      </span>
+                                      Pelanggaran
+                                    </button>
+                                    <button
+                                      className={`icon-btn icon-btn--danger ${confirmDeleteIds[siswa.id] ? "is-confirm" : ""}`}
+                                      title={confirmDeleteIds[siswa.id] ? "Klik untuk hapus" : "Hapus"}
+                                      type="button"
+                                      onClick={() => {
+                                        if (confirmDeleteIds[siswa.id]) {
+                                          handleDeleteSiswa(siswa);
                                           setConfirmDeleteIds((prev) => ({ ...prev, [siswa.id]: false }));
-                                        }, 3000);
-                                      }
-                                    }}
-                                  >
-                                    {confirmDeleteIds[siswa.id] ? "Yakin?" : "Hapus"}
-                                  </button>
+                                        } else {
+                                          setConfirmDeleteIds((prev) => ({ ...prev, [siswa.id]: true }));
+                                          setTimeout(() => {
+                                            setConfirmDeleteIds((prev) => ({ ...prev, [siswa.id]: false }));
+                                          }, 3000);
+                                        }
+                                      }}
+                                    >
+                                      {confirmDeleteIds[siswa.id] ? (
+                                        <span className="icon-btn__label">Yakin?</span>
+                                      ) : (
+                                        <svg viewBox="0 0 24 24" aria-hidden="true">
+                                          <path
+                                            d="M6 7h12l-1 12H7L6 7Z"
+                                            fill="none"
+                                            stroke="currentColor"
+                                            strokeWidth="1.6"
+                                            strokeLinejoin="round"
+                                          />
+                                          <path d="M9 7V5h6v2M10 11v5M14 11v5" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+                                        </svg>
+                                      )}
+                                    </button>
+                                  </div>
                                 </td>
                               </tr>
                               {confirmDeleteIds[`panel-${siswa.id}`] ? (

@@ -546,6 +546,58 @@ body {
   transform: translateY(-1px);
 }
 
+.row-actions {
+  display: flex;
+  gap: 6px;
+  justify-content: flex-end;
+  flex-wrap: nowrap;
+  align-items: center;
+}
+
+.btn--icon {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 34px;
+  padding: 6px 10px;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.btn__icon svg {
+  width: 14px;
+  height: 14px;
+}
+
+.icon-btn--danger {
+  width: 36px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  border-radius: 10px;
+  background: rgba(239, 68, 68, 0.12);
+  color: #dc2626;
+  border: 1px solid rgba(239, 68, 68, 0.2);
+}
+
+.icon-btn--danger svg {
+  width: 16px;
+  height: 16px;
+}
+
+.icon-btn--danger.is-confirm {
+  width: auto;
+  padding: 6px 10px;
+  color: #ffffff;
+  background: #dc2626;
+  border-color: #dc2626;
+}
+
+.icon-btn__label {
+  font-weight: 700;
+  font-size: 0.75rem;
+}
+
 .segmented {
   display: flex;
   gap: 8px;
