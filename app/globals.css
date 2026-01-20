@@ -545,7 +545,7 @@ body {
 }
 
 .siswa-head__title {
-  flex: 1 1 260px;
+  flex: 1 1;
   min-width: 220px;
 }
 
@@ -561,7 +561,7 @@ body {
 }
 
 .siswa-segmented {
-  flex: 1 1 320px;
+  flex: 1 1;
   justify-content: flex-end;
 }
 
