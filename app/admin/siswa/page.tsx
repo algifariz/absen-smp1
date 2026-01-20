@@ -75,6 +75,9 @@ export default function KelolaSiswaPage() {
   const [barcodeModalOpen, setBarcodeModalOpen] = useState(false);
   const [barcodeTarget, setBarcodeTarget] = useState<SiswaRecord | null>(null);
   const [qrDataUrl, setQrDataUrl] = useState<string>("");
+  const importInputRef = useRef<HTMLInputElement | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
 
   // Form State
   const [formNama, setFormNama] = useState("");
@@ -92,6 +95,18 @@ export default function KelolaSiswaPage() {
     if (selectedKelas === "all") return siswaData;
     return siswaData.filter((s) => s.kelas === selectedKelas);
   }, [selectedKelas, siswaData]);
+
+  const pageSizeFinal = pageSize >= filteredSiswa.length ? filteredSiswa.length || 1 : pageSize;
+  const totalPages = Math.max(1, Math.ceil(filteredSiswa.length / pageSizeFinal));
+  const pagedSiswa = useMemo(() => {
+    if (filteredSiswa.length === 0) return [];
+    const start = (currentPage - 1) * pageSizeFinal;
+    return filteredSiswa.slice(start, start + pageSizeFinal);
+  }, [currentPage, filteredSiswa, pageSizeFinal]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [selectedKelas, pageSize, siswaData.length]);
 
   useEffect(() => {
     let isActive = true;
@@ -198,6 +213,13 @@ export default function KelolaSiswaPage() {
     const nama = formNama.trim();
     const kelas = formKelas.trim().toUpperCase();
     if (!nama || !kelas) return;
+    const exists = siswaData.some(
+      (siswa) => siswa.nama.trim().toLowerCase() === nama.toLowerCase() && siswa.kelas === kelas,
+    );
+    if (exists) {
+      showNotif("Siswa dengan nama dan kelas yang sama sudah ada");
+      return;
+    }
 
     const barcodeId = generateBarcodeId();
 
@@ -484,6 +506,110 @@ export default function KelolaSiswaPage() {
     qrImg.src = qrDataUrl;
   }, []);
 
+  const handleExportCsv = useCallback(() => {
+    const header = ["nama", "kelas"];
+    const rows = siswaData.map((siswa) => [siswa.nama, siswa.kelas]);
+    const escapeCsv = (value: string) => {
+      const safe = value.replace(/"/g, '""');
+      return `"${safe}"`;
+    };
+    const csv = [header, ...rows]
+      .map((row) => row.map((cell) => escapeCsv(String(cell ?? ""))).join(","))
+      .join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `data_siswa_${getTodayDate()}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  }, [siswaData]);
+
+  const handleImportCsv = useCallback(
+    async (file: File) => {
+      try {
+        const text = await file.text();
+        const lines = text.split(/\r?\n/).filter((line) => line.trim().length > 0);
+        if (lines.length === 0) {
+          showNotif("File kosong");
+          return;
+        }
+
+        const delimiter = lines[0].includes(";") ? ";" : lines[0].includes("\t") ? "\t" : ",";
+        const parseRow = (line: string) =>
+          line
+            .split(delimiter)
+            .map((cell) => cell.trim().replace(/^"|"$/g, ""));
+
+        const header = parseRow(lines[0]).map((h) => h.toLowerCase());
+        const nameIndex = header.indexOf("nama");
+        const kelasIndex = header.indexOf("kelas");
+        if (nameIndex === -1 || kelasIndex === -1) {
+          showNotif("Header harus ada kolom nama dan kelas");
+          return;
+        }
+
+        const existingKeys = new Set(
+          siswaData.map((siswa) => `${siswa.nama.trim().toLowerCase()}|${siswa.kelas}`),
+        );
+        const payload = lines.slice(1).map((line) => {
+          const cells = parseRow(line);
+          const nama = (cells[nameIndex] || "").trim();
+          const kelas = (cells[kelasIndex] || "").trim().toUpperCase();
+          if (!nama || !kelas) return null;
+          const key = `${nama.toLowerCase()}|${kelas}`;
+          if (existingKeys.has(key)) return null;
+          existingKeys.add(key);
+          return {
+            id: Date.now().toString() + Math.random().toString(36).slice(2, 6),
+            type: "siswa",
+            nama,
+            kelas,
+            poin: 0,
+            kehadiran: 0,
+            dibuat: new Date().toISOString(),
+            barcode_id: generateBarcodeId(),
+            absen_hari_ini: null,
+          };
+        });
+
+        const rows = payload.filter(Boolean) as Array<{
+          id: string;
+          type: "siswa";
+          nama: string;
+          kelas: string;
+          poin: number;
+          kehadiran: number;
+          dibuat: string;
+          barcode_id: string;
+          absen_hari_ini: null;
+        }>;
+
+        if (rows.length === 0) {
+          showNotif("Tidak ada data valid untuk diimport");
+          return;
+        }
+
+        const { error } = await supabase.from("records").insert(rows);
+        if (error) {
+          showNotif(`Gagal import: ${error.message}`);
+          return;
+        }
+        showNotif(`Berhasil import ${rows.length} siswa`);
+        refreshData();
+      } catch {
+        showNotif("Gagal membaca file");
+      } finally {
+        if (importInputRef.current) {
+          importInputRef.current.value = "";
+        }
+      }
+    },
+    [refreshData, showNotif],
+  );
+
   return (
     <>
       <div className="absensi-shell fade-in">
@@ -518,18 +644,42 @@ export default function KelolaSiswaPage() {
                 </div>
               ) : null}
 
-              <article className="card card--full">
-                <div className="card__head">
-                  <div>
+              <article className="card card--full siswa-card siswa-card--compact">
+                <div className="card__head siswa-head">
+                  <div className="siswa-head__title">
                     <h2 className="card__title">Daftar Siswa</h2>
                     <p className="card__desc" style={{ color: "#0f172a" }}>
                       Gunakan filter kelas untuk mempercepat pencarian.
                     </p>
                   </div>
-                  <button className="btn btn--primary" type="button" onClick={() => setAddModalOpen(true)}>
-                    + Tambah Siswa
-                  </button>
-                  <div className="segmented" role="tablist" aria-label="Filter kelas">
+                  <div className="siswa-toolbar">
+                    <button className="btn btn--primary" type="button" onClick={() => setAddModalOpen(true)}>
+                      + Tambah Siswa
+                    </button>
+                    <div className="actions siswa-actions">
+                      <button className="btn btn--ghost btn--sm" type="button" onClick={handleExportCsv}>
+                        Export Excel
+                      </button>
+                      <button
+                        className="btn btn--ghost btn--sm"
+                        type="button"
+                        onClick={() => importInputRef.current?.click()}
+                      >
+                        Import Excel
+                      </button>
+                    </div>
+                  </div>
+                  <input
+                    ref={importInputRef}
+                    type="file"
+                    accept=".csv,text/csv"
+                    style={{ display: "none" }}
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) handleImportCsv(file);
+                    }}
+                  />
+                  <div className="segmented siswa-segmented" role="tablist" aria-label="Filter kelas">
                     <button
                       className={`segmented__btn ${selectedKelas === "all" ? "is-active" : ""}`}
                       type="button"
@@ -554,7 +704,7 @@ export default function KelolaSiswaPage() {
                 </div>
 
                 <div className="table-wrap">
-                  <table className="table">
+                  <table className="table table--cards">
                     <thead>
                       <tr>
                         <th>Nama</th>
@@ -574,7 +724,7 @@ export default function KelolaSiswaPage() {
                           <td colSpan={5} className="table-empty">Belum ada siswa.</td>
                         </tr>
                       ) : (
-                        filteredSiswa.map((siswa) => {
+                        pagedSiswa.map((siswa) => {
                           const sudahAbsen = isClientReady && siswa.absen_hari_ini === todayDate;
                           const statusValue =
                             sudahAbsen && siswa.status_hari_ini ? siswa.status_hari_ini : null;
@@ -824,6 +974,49 @@ export default function KelolaSiswaPage() {
                       )}
                     </tbody>
                   </table>
+                </div>
+                <div className="pagination">
+                  <div className="pagination__info">
+                    Menampilkan {filteredSiswa.length === 0 ? 0 : (currentPage - 1) * pageSizeFinal + 1}-
+                    {Math.min(currentPage * pageSizeFinal, filteredSiswa.length)} dari {filteredSiswa.length}
+                  </div>
+                  <div className="pagination__controls">
+                    <button
+                      className="btn btn--ghost btn--sm"
+                      type="button"
+                      onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
+                      disabled={currentPage === 1}
+                    >
+                      Sebelumnya
+                    </button>
+                    <span className="pagination__page">
+                      {currentPage} / {totalPages}
+                    </span>
+                    <button
+                      className="btn btn--ghost btn--sm"
+                      type="button"
+                      onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
+                      disabled={currentPage === totalPages}
+                    >
+                      Berikutnya
+                    </button>
+                    <div className="pagination__size">
+                      <label htmlFor="page-size" className="pagination__label">
+                        Tampilkan
+                      </label>
+                      <select
+                        id="page-size"
+                        className="input pagination__select"
+                        value={pageSize}
+                        onChange={(e) => setPageSize(Number(e.target.value))}
+                      >
+                        <option value={10}>10</option>
+                        <option value={25}>25</option>
+                        <option value={50}>50</option>
+                        <option value={filteredSiswa.length || 10}>Semua</option>
+                      </select>
+                    </div>
+                  </div>
                 </div>
               </article>
       </div>
