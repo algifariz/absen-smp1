@@ -1,8 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { useState } from "react";
+import { usePathname, useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
+import { supabase } from "@/lib/supabaseClient";
 
 type Props = {
   children: React.ReactNode;
@@ -10,7 +11,37 @@ type Props = {
 
 export default function AdminLayout({ children }: Props) {
   const pathname = usePathname();
+  const router = useRouter();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [checkingAuth, setCheckingAuth] = useState(true);
+
+  useEffect(() => {
+    let isMounted = true;
+    supabase.auth.getSession().then(({ data }) => {
+      if (!isMounted) return;
+      if (!data.session) {
+        router.replace("/login");
+        return;
+      }
+      setCheckingAuth(false);
+    });
+
+    const { data: authListener } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (!session) {
+        router.replace("/login");
+      }
+    });
+
+    return () => {
+      isMounted = false;
+      authListener.subscription.unsubscribe();
+    };
+  }, [router]);
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    router.replace("/");
+  };
 
   const isActive = (href: string) => pathname === href;
 
@@ -99,6 +130,22 @@ export default function AdminLayout({ children }: Props) {
       ),
     },
     {
+      href: "/admin/qrcode",
+      label: "Generate QR",
+      icon: (
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path
+            d="M4 4.5h6v6H4v-6Zm10 0h6v6h-6v-6Zm-10 10h6v6H4v-6Zm10 4h2m2 0h2m-4-2v4"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.6"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        </svg>
+      ),
+    },
+    {
       href: "/admin/poin",
       label: "Poin",
       icon: (
@@ -129,6 +176,8 @@ export default function AdminLayout({ children }: Props) {
       ),
     },
   ];
+
+  if (checkingAuth) return null;
 
   return (
     <div className="min-h-full w-full">
@@ -181,9 +230,9 @@ export default function AdminLayout({ children }: Props) {
                 <span className="dot dot--ok" />
                 <span>Online</span>
               </div>
-              <Link className="btn btn--ghost w-full" href="/">
-                Kembali ke Beranda
-              </Link>
+              <button className="btn btn--ghost w-full" type="button" onClick={handleLogout}>
+                Logout
+              </button>
             </div>
           </aside>
 

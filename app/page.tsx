@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import QRCode from "qrcode";
+import type { Session } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabaseClient";
 
 type SiswaRecord = {
@@ -93,6 +94,7 @@ export default function Home() {
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [session, setSession] = useState<Session | null>(null);
 
   const notifTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [todayDate] = useState<string>(getTodayDate());
@@ -141,6 +143,24 @@ export default function Home() {
     return () => {
       isActive = false;
     };
+  }, []);
+
+  useEffect(() => {
+    let isMounted = true;
+    supabase.auth.getSession().then(({ data }) => {
+      if (isMounted) setSession(data.session);
+    });
+    const { data: authListener } = supabase.auth.onAuthStateChange((_event, sessionState) => {
+      setSession(sessionState);
+    });
+    return () => {
+      isMounted = false;
+      authListener.subscription.unsubscribe();
+    };
+  }, []);
+
+  const handleLogout = useCallback(async () => {
+    await supabase.auth.signOut();
   }, []);
 
   useEffect(() => {
@@ -404,14 +424,26 @@ export default function Home() {
                       Sistem Poin & Prestasi Siswa
                     </p>
                   </div>
-                  <Link
-                    href="/admin/siswa"
-                    className="luxury-button admin-cta inline-flex items-center justify-center gap-2"
-                    style={{ background: primaryColor, color: "white", fontSize: `${baseSize * 0.9}px` }}
-                  >
-                      <span>{"\u{1F6E0}\u{FE0F}"}</span>
-                      <span>{config.tombol_admin || defaultConfig.tombol_admin}</span>
-                  </Link>
+                  {session ? (
+                    <button
+                      className="luxury-button admin-cta inline-flex items-center justify-center gap-2"
+                      style={{ background: primaryColor, color: "white", fontSize: `${baseSize * 0.9}px` }}
+                      type="button"
+                      onClick={handleLogout}
+                    >
+                      <span>{"\u{1F512}"}</span>
+                      <span>Logout</span>
+                    </button>
+                  ) : (
+                    <Link
+                      href="/login"
+                      className="luxury-button admin-cta inline-flex items-center justify-center gap-2"
+                      style={{ background: primaryColor, color: "white", fontSize: `${baseSize * 0.9}px` }}
+                    >
+                      <span>{"\u{1F512}"}</span>
+                      <span>Login</span>
+                    </Link>
+                  )}
                 </div>
               </div>
 

@@ -1,6 +1,7 @@
 ﻿"use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Html5Qrcode } from "html5-qrcode";
 import { supabase } from "@/lib/supabaseClient";
 
 type SiswaRecord = {
@@ -24,6 +25,11 @@ export default function PoinPage() {
   const [notif, setNotif] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [scanModalOpen, setScanModalOpen] = useState(false);
+  const [scanSession, setScanSession] = useState(0);
+  const [scanStatus, setScanStatus] = useState<"idle" | "scanning" | "success" | "error">("idle");
+  const qrScannerRef = useRef<Html5Qrcode | null>(null);
+  const scannerRunningRef = useRef<boolean>(false);
 
   useEffect(() => {
     let isActive = true;
@@ -127,6 +133,99 @@ export default function PoinPage() {
     }
   };
 
+  const handleScanBarcode = useCallback(
+    (barcodeId: string) => {
+      const siswa = siswaData.find((item) => item.barcode_id === barcodeId);
+      if (!siswa) {
+        setScanStatus("error");
+        showNotif("Barcode tidak ditemukan");
+        return;
+      }
+      setFormPoinSiswaId(siswa.id);
+      setFormPoinSiswaQuery(`${siswa.nama} (${siswa.kelas})`);
+      setScanStatus("success");
+      showNotif(`Siswa dipilih: ${siswa.nama}`);
+      setScanModalOpen(false);
+    },
+    [siswaData, showNotif],
+  );
+
+  useEffect(() => {
+    if (!scanModalOpen) {
+      const scanner = qrScannerRef.current;
+      if (scannerRunningRef.current && scanner) {
+        scannerRunningRef.current = false;
+        scanner
+          .stop()
+          .catch(() => {})
+          .finally(() => {
+            scanner.clear();
+          });
+      }
+      return;
+    }
+
+    const startScanner = async () => {
+      setScanStatus("scanning");
+      const scanner = new Html5Qrcode("qr-reader-poin");
+      qrScannerRef.current = scanner;
+      try {
+        await scanner.start(
+          { facingMode: "environment" },
+          { fps: 10, qrbox: 250 },
+          (decodedText) => {
+            if (scannerRunningRef.current) {
+              scannerRunningRef.current = false;
+              scanner.stop().catch(() => {});
+            }
+            handleScanBarcode(decodedText);
+          },
+          () => {},
+        );
+        scannerRunningRef.current = true;
+      } catch {
+        setScanStatus("error");
+        showNotif("Tidak bisa membuka kamera");
+      }
+    };
+
+    startScanner();
+
+    return () => {
+      const scanner = qrScannerRef.current;
+      if (scannerRunningRef.current && scanner) {
+        scannerRunningRef.current = false;
+        scanner.stop().catch(() => {});
+      }
+      scanner?.clear();
+    };
+  }, [scanModalOpen, scanSession, handleScanBarcode, showNotif]);
+
+  const handleRestartScan = () => {
+    if (scannerRunningRef.current && qrScannerRef.current) {
+      scannerRunningRef.current = false;
+      qrScannerRef.current.stop().catch(() => {});
+    }
+    setScanSession((prev) => prev + 1);
+  };
+
+  const scanStatusLabel = useMemo(() => {
+    if (scanStatus === "scanning") return "Mendeteksi barcode...";
+    if (scanStatus === "success") return "Berhasil";
+    if (scanStatus === "error") return "Gagal";
+    return "Siap memindai";
+  }, [scanStatus]);
+
+  const scanStatusStyle = useMemo(() => {
+    if (scanStatus === "success") {
+      return { background: "rgba(16, 185, 129, 0.2)", border: "1px solid rgba(16, 185, 129, 0.4)" };
+    }
+    if (scanStatus === "error") {
+      return { background: "rgba(239, 68, 68, 0.2)", border: "1px solid rgba(239, 68, 68, 0.4)" };
+    }
+    return { background: "rgba(59, 130, 246, 0.2)", border: "1px solid rgba(59, 130, 246, 0.4)" };
+  }, [scanStatus]);
+
   return (
     <>
       <div className="absensi-shell fade-in">
@@ -198,6 +297,12 @@ export default function PoinPage() {
               </datalist>
             </div>
 
+            <div className="two-col">
+              <button className="btn btn--primary" type="button" onClick={() => setScanModalOpen(true)}>
+                Scan Barcode
+              </button>
+            </div>
+
             <div className="field">
               <label className="label" htmlFor="jumlahPoin">
                 Jumlah Poin
@@ -221,6 +326,62 @@ export default function PoinPage() {
           </form>
         </article>
       </div>
+      {scanModalOpen ? (
+        <div className="modal-overlay">
+          <div className="glass-card rounded-3xl p-6 md:p-8 max-w-xl w-full mx-4 premium-shadow">
+            <h2 className="font-bold mb-4 text-center" style={{ fontSize: "1.8rem", color: "#0f172a" }}>
+              Scan Barcode/QR Siswa
+            </h2>
+            <p className="text-center mb-4" style={{ fontSize: "1rem", color: "#0f172a", opacity: 0.7 }}>
+              Pastikan izin kamera aktif dan gunakan koneksi `https` atau `localhost`.
+            </p>
+            <div className="scanner-frame mb-6 mx-auto">
+              <div id="qr-reader-poin" style={{ width: "100%", height: "100%" }} />
+              <div className="scan-line" />
+              <div className="corner-tl" />
+              <div className="corner-tr" />
+              <div className="corner-bl" />
+              <div className="corner-br" />
+            </div>
+            <div className="flex items-center justify-center mb-4">
+              <div
+                className="px-4 py-2 rounded-2xl font-semibold"
+                style={{
+                  ...scanStatusStyle,
+                  fontSize: "0.85rem",
+                }}
+              >
+                {scanStatusLabel}
+              </div>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <button
+                className="luxury-button w-full px-8 py-4 rounded-2xl font-bold shadow-lg"
+                style={{
+                  background: "linear-gradient(135deg, #2563eb, #1d4ed8)",
+                  color: "white",
+                  fontSize: "1rem",
+                }}
+                onClick={handleRestartScan}
+              >
+                Scan Ulang
+              </button>
+              <button
+                className="luxury-button w-full px-8 py-4 rounded-2xl font-bold shadow-lg"
+                style={{
+                  background: "rgba(255, 255, 255, 0.05)",
+                  color: "#0f172a",
+                  border: "2px solid rgba(255, 255, 255, 0.1)",
+                  fontSize: "1rem",
+                }}
+                onClick={() => setScanModalOpen(false)}
+              >
+                Tutup Scanner
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
       {notif ? (
         <div
           style={{

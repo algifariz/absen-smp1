@@ -691,6 +691,30 @@ body {
   outline: none;
 }
 
+.input-prefix {
+  display: flex;
+  align-items: center;
+  gap: 0;
+}
+
+.input-prefix__icon {
+  padding: 0 12px;
+  height: 42px;
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  border-right: none;
+  border-radius: 12px 0 0 12px;
+  background: #f8fafc;
+  font-weight: 800;
+  color: #0f172a;
+}
+
+.input-prefix__field {
+  border-radius: 0 12px 12px 0;
+  border-left: none;
+}
+
 .input:focus {
   border-color: var(--admin-primary);
   box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
@@ -1169,6 +1193,155 @@ body {
 .muted {
   color: var(--admin-muted);
   font-size: 0.8rem;
+}
+
+.qr-toolbar {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  align-items: end;
+}
+
+.qr-field {
+  max-width: 320px;
+}
+
+.qr-actions {
+  display: grid;
+  gap: 6px;
+  justify-items: flex-start;
+}
+
+.qr-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 16px;
+}
+
+.qr-group-list {
+  display: grid;
+  gap: 22px;
+}
+
+.qr-group {
+  display: grid;
+  gap: 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px dashed rgba(148, 163, 184, 0.5);
+}
+
+.qr-group:last-child {
+  border-bottom: none;
+}
+
+.qr-group__title {
+  font-weight: 800;
+  font-size: 1.05rem;
+  color: #0f172a;
+}
+
+.qr-card {
+  display: grid;
+  gap: 12px;
+  padding: 16px;
+  border-radius: 16px;
+  border: 1px solid var(--admin-border);
+  background: #ffffff;
+  box-shadow: 0 12px 24px rgba(15, 23, 42, 0.08);
+}
+
+.qr-code {
+  display: grid;
+  place-items: center;
+  padding: 12px;
+  border-radius: 12px;
+  background: #f8fafc;
+  border: 1px dashed rgba(148, 163, 184, 0.4);
+}
+
+.qr-code img {
+  width: 170px;
+  height: 170px;
+}
+
+.qr-meta {
+  display: grid;
+  gap: 4px;
+}
+
+.qr-name {
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.qr-sub {
+  font-weight: 600;
+  color: #475569;
+  font-size: 0.85rem;
+}
+
+.qr-id {
+  font-family: "Courier New", Courier, monospace;
+  font-size: 0.8rem;
+  color: #0f172a;
+}
+
+.qr-card-actions {
+  display: flex;
+  justify-content: flex-start;
+}
+
+.qr-print-area {
+  break-inside: avoid;
+}
+
+@media print {
+  body {
+    background: #ffffff !important;
+  }
+
+  .admin-sidebar,
+  .mobile-topbar,
+  .qr-hide-print {
+    display: none !important;
+  }
+
+  .admin-app,
+  .admin-main,
+  .absensi-shell {
+    padding: 0 !important;
+    margin: 0 !important;
+    background: #ffffff !important;
+    box-shadow: none !important;
+    border: none !important;
+  }
+
+  .qr-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 12px;
+  }
+
+  .qr-group {
+    break-after: page;
+    page-break-after: always;
+    border: none;
+    padding-bottom: 0;
+  }
+
+  .qr-group:last-child {
+    page-break-after: auto;
+  }
+
+  .qr-card {
+    box-shadow: none;
+    border: 1px solid #e2e8f0;
+    page-break-inside: avoid;
+  }
+
+  .qr-code img {
+    width: 140px;
+    height: 140px;
+  }
 }
 
 .w-full {
