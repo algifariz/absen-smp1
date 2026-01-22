@@ -223,6 +223,7 @@ export default function AbsensiPage() {
       const ok = await handleUpdateSiswa(siswa, {
         kehadiran: siswa.kehadiran + 1,
         absen_hari_ini: today,
+        status_hari_ini: "hadir",
       });
 
       if (ok) {

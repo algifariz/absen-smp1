@@ -33,6 +33,16 @@ function formatDate(date: Date) {
   return `${year}-${month}-${day}`;
 }
 
+function toDateKey(value: string | null | undefined) {
+  if (!value) return "";
+  if (value.length >= 10 && value[4] === "-" && value[7] === "-") {
+    return value.slice(0, 10);
+  }
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return "";
+  return formatDate(parsed);
+}
+
 function getLastDates(days: number) {
   const list: string[] = [];
   const now = new Date();
@@ -44,10 +54,18 @@ function getLastDates(days: number) {
   return list;
 }
 
+function addDays(date: Date, days: number) {
+  const next = new Date(date);
+  next.setDate(date.getDate() + days);
+  return next;
+}
+
 function buildSeries(dates: string[], logs: { tanggal: string }[]) {
   const counts = new Map<string, number>();
   logs.forEach((row) => {
-    counts.set(row.tanggal, (counts.get(row.tanggal) || 0) + 1);
+    const key = toDateKey(row.tanggal);
+    if (!key) return;
+    counts.set(key, (counts.get(key) || 0) + 1);
   });
   return dates.map((date) => ({ date, count: counts.get(date) || 0 }));
 }
@@ -105,6 +123,8 @@ export default function DashboardPage() {
 
   const dates = useMemo(() => getLastDates(7), []);
   const today = dates[dates.length - 1];
+  const rangeStart = dates[0];
+  const rangeEnd = formatDate(addDays(new Date(dates[dates.length - 1]), 1));
 
   const fetchData = useCallback(async () => {
     setIsLoading(true);
@@ -114,14 +134,17 @@ export default function DashboardPage() {
       let pelanggaranLogs: PelanggaranLog[] = [];
       let absensiLogOk = true;
       let pelanggaranLogOk = true;
+      let absensiReady = true;
+      let pelanggaranReady = true;
 
       const absensiResp = await supabase
         .from("absensi_log")
         .select("id,tanggal,kelas,status_hari_ini")
-        .gte("tanggal", dates[0])
-        .lte("tanggal", dates[dates.length - 1]);
+        .gte("tanggal", rangeStart)
+        .lt("tanggal", rangeEnd);
       if (absensiResp.error) {
         absensiLogOk = false;
+        absensiReady = false;
       } else {
         absensiLogs = (absensiResp.data as AbsensiLog[]) || [];
       }
@@ -129,10 +152,11 @@ export default function DashboardPage() {
       const pelanggaranResp = await supabase
         .from("pelanggaran_siswa_log")
         .select("id,tanggal,kelas")
-        .gte("tanggal", dates[0])
-        .lte("tanggal", dates[dates.length - 1]);
+        .gte("tanggal", rangeStart)
+        .lt("tanggal", rangeEnd);
       if (pelanggaranResp.error) {
         pelanggaranLogOk = false;
+        pelanggaranReady = false;
       } else {
         pelanggaranLogs = (pelanggaranResp.data as PelanggaranLog[]) || [];
       }
@@ -162,23 +186,22 @@ export default function DashboardPage() {
       setAbsensiSeries(absensiSeriesData);
       setPelanggaranSeries(pelanggaranSeriesData);
       setTopSiswa((siswaRows as SiswaRow[]) || []);
-      if (absensiLogOk) {
-        const todayLogs = absensiLogs.filter((row) => row.tanggal === today);
-        setHadirHariIni(todayLogs.filter((row) => row.status_hari_ini === "hadir").length);
-        setIzinHariIni(todayLogs.filter((row) => row.status_hari_ini === "izin").length);
-        setSakitHariIni(todayLogs.filter((row) => row.status_hari_ini === "sakit").length);
-        setAlfaHariIni(todayLogs.filter((row) => row.status_hari_ini === "alfa").length);
-      } else {
+      const fetchAbsensiFallback = async () => {
+        let fallbackOk = false;
         const { data: siswaToday, error: siswaTodayError } = await supabase
           .from("records")
           .select("status_hari_ini,absen_hari_ini")
           .eq("type", "siswa")
           .eq("absen_hari_ini", today);
         const rows = !siswaTodayError ? ((siswaToday as { status_hari_ini: string | null }[]) || []) : [];
+        if (!siswaTodayError) {
+          fallbackOk = true;
+        }
         setHadirHariIni(rows.filter((row) => row.status_hari_ini === "hadir").length);
         setIzinHariIni(rows.filter((row) => row.status_hari_ini === "izin").length);
         setSakitHariIni(rows.filter((row) => row.status_hari_ini === "sakit").length);
         setAlfaHariIni(rows.filter((row) => row.status_hari_ini === "alfa").length);
+
         const { data: siswaRange, error: siswaRangeError } = await supabase
           .from("records")
           .select("absen_hari_ini,kelas")
@@ -186,6 +209,7 @@ export default function DashboardPage() {
           .gte("absen_hari_ini", dates[0])
           .lte("absen_hari_ini", dates[dates.length - 1]);
         if (!siswaRangeError) {
+          fallbackOk = true;
           const rangeLogs = (siswaRange as { absen_hari_ini: string | null; kelas: string | null }[]).flatMap((row) =>
             row.absen_hari_ini ? [{ tanggal: String(row.absen_hari_ini), kelas: row.kelas }] : [],
           );
@@ -196,15 +220,33 @@ export default function DashboardPage() {
             kelasAbsensiMap.set(row.kelas, (kelasAbsensiMap.get(row.kelas) || 0) + 1);
           });
         }
+        if (fallbackOk) {
+          absensiReady = true;
+        }
+      };
+
+      if (absensiLogOk) {
+        const todayLogs = absensiLogs.filter((row) => toDateKey(row.tanggal) === today);
+        setHadirHariIni(todayLogs.filter((row) => row.status_hari_ini === "hadir").length);
+        setIzinHariIni(todayLogs.filter((row) => row.status_hari_ini === "izin").length);
+        setSakitHariIni(todayLogs.filter((row) => row.status_hari_ini === "sakit").length);
+        setAlfaHariIni(todayLogs.filter((row) => row.status_hari_ini === "alfa").length);
+
+        if (todayLogs.length === 0) {
+          await fetchAbsensiFallback();
+        }
+      } else {
+        await fetchAbsensiFallback();
       }
 
       if (!pelanggaranLogOk || pelanggaranLogs.length === 0) {
         const { data: pelanggaranAlt, error: pelanggaranAltError } = await supabase
           .from("pelanggaran_log")
           .select("id,tanggal,kelas")
-          .gte("tanggal", dates[0])
-          .lte("tanggal", dates[dates.length - 1]);
+          .gte("tanggal", rangeStart)
+          .lt("tanggal", rangeEnd);
         if (!pelanggaranAltError) {
+          pelanggaranReady = true;
           pelanggaranLogs = (pelanggaranAlt as PelanggaranLog[]) || [];
           pelanggaranSeriesData = buildSeries(dates, pelanggaranLogs);
           setPelanggaranSeries(pelanggaranSeriesData);
@@ -227,7 +269,7 @@ export default function DashboardPage() {
           .slice(0, 4),
       );
 
-      if (!absensiLogOk || !pelanggaranLogOk) {
+      if (!absensiReady || !pelanggaranReady) {
         setLoadError("Sebagian data log belum tersedia. Silakan periksa tabel log Supabase.");
       } else {
         setLoadError(null);
@@ -256,6 +298,7 @@ export default function DashboardPage() {
     const channel = supabase
       .channel("dashboard-realtime")
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "absensi_log" }, fetchData)
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "pelanggaran_siswa_log" }, fetchData)
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "pelanggaran_log" }, fetchData)
       .on("postgres_changes", { event: "UPDATE", schema: "public", table: "records" }, fetchData)
       .subscribe();
