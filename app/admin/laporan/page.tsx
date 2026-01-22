@@ -529,7 +529,7 @@ export default function LaporanPage() {
         </div>
 
         <div className="search">
-          <span>🔍</span>
+          <span aria-hidden="true">??</span>
           <input
             className="search__input"
             placeholder="Cari nama/kelas/barcode..."
@@ -771,3 +771,4 @@ export default function LaporanPage() {
     </div>
   );
 }
+

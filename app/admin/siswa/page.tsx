@@ -334,6 +334,21 @@ export default function KelolaSiswaPage() {
     }
   };
 
+  const handleMinusPoin = async (siswa: SiswaRecord) => {
+    const today = getTodayDate();
+    if (siswa.absen_hari_ini !== today) {
+      showNotif(`${siswa.nama} belum absen hari ini`);
+      return;
+    }
+    const nextPoin = Math.max(0, siswa.poin - 10);
+    const ok = await handleUpdateSiswa(siswa, { poin: nextPoin });
+    if (ok) {
+      showNotif(`-10 poin untuk ${siswa.nama}`);
+    } else {
+      showNotif("Gagal mengurangi poin");
+    }
+  };
+
   const handlePelanggaran = async (
     siswa: SiswaRecord,
     poinPenalti: number,
@@ -835,7 +850,7 @@ export default function KelolaSiswaPage() {
                                       Alfa
                                     </button>
                                     <button
-                                      className="btn btn--primary btn--sm btn--icon"
+                                      className="btn btn--success btn--sm btn--icon"
                                       type="button"
                                       onClick={() => handlePlusPoin(siswa)}
                                     >
@@ -845,6 +860,18 @@ export default function KelolaSiswaPage() {
                                         </svg>
                                       </span>
                                        Poin
+                                    </button>
+                                    <button
+                                      className="btn btn--danger btn--sm btn--icon"
+                                      type="button"
+                                      onClick={() => handleMinusPoin(siswa)}
+                                    >
+                                      <span className="btn__icon" aria-hidden="true">
+                                        <svg viewBox="0 0 24 24">
+                                          <path d="M5 12h14" fill="none" stroke="currentColor" strokeWidth="1.8" />
+                                        </svg>
+                                      </span>
+                                      Poin
                                     </button>
                                     <button
                                       className="btn btn--danger btn--sm btn--icon"
