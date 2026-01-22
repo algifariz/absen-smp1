@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import QRCode from "qrcode";
 import type { Session } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabaseClient";
 
@@ -34,6 +33,14 @@ type ConfigState = {
   tombol_simpan: string;
 };
 
+type AttendanceSummary = {
+  hadir: number;
+  izin: number;
+  sakit: number;
+  alfa: number;
+  pelanggaran: number;
+};
+
 const defaultConfig: ConfigState = {
   background_color: "#f8fafc",
   card_color: "#ffffff",
@@ -49,37 +56,6 @@ const defaultConfig: ConfigState = {
   tombol_simpan: "Simpan Siswa",
 };
 
-function getTodayDate() {
-  const now = new Date();
-  const year = now.getFullYear();
-  const month = String(now.getMonth() + 1).padStart(2, "0");
-  const day = String(now.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
-}
-
-function drawRoundedRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) {
-  const radius = Math.min(r, w / 2, h / 2);
-  ctx.beginPath();
-  ctx.moveTo(x + radius, y);
-  ctx.lineTo(x + w - radius, y);
-  ctx.quadraticCurveTo(x + w, y, x + w, y + radius);
-  ctx.lineTo(x + w, y + h - radius);
-  ctx.quadraticCurveTo(x + w, y + h, x + w - radius, y + h);
-  ctx.lineTo(x + radius, y + h);
-  ctx.quadraticCurveTo(x, y + h, x, y + h - radius);
-  ctx.lineTo(x, y + radius);
-  ctx.quadraticCurveTo(x, y, x + radius, y);
-  ctx.closePath();
-}
-
-function getInitials(name: string) {
-  const parts = name.trim().split(/\s+/).filter(Boolean);
-  if (parts.length === 0) return "S";
-  const first = parts[0]?.[0] ?? "";
-  const last = parts.length > 1 ? parts[parts.length - 1]?.[0] ?? "" : "";
-  return (first + last).toUpperCase();
-}
-
 export default function Home() {
   const [config] = useState<ConfigState>(defaultConfig);
   const [selectedKelas, setSelectedKelas] = useState<string>("all");
@@ -88,7 +64,7 @@ export default function Home() {
   // Barcode Modal State
   const [barcodeModalOpen, setBarcodeModalOpen] = useState(false);
   const [barcodeTarget, setBarcodeTarget] = useState<SiswaRecord | null>(null);
-  const [qrDataUrl, setQrDataUrl] = useState<string>("");
+  const [attendanceMap, setAttendanceMap] = useState<Record<string, AttendanceSummary>>({});
 
   const [notif, setNotif] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -97,8 +73,6 @@ export default function Home() {
   const [session, setSession] = useState<Session | null>(null);
 
   const notifTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const [todayDate] = useState<string>(getTodayDate());
-  const isClientReady = todayDate !== "";
 
   const kelasList = useMemo(() => {
     const kelasSet = new Set(siswaData.map((s) => s.kelas).filter(Boolean));
@@ -175,18 +149,71 @@ export default function Home() {
   }, [notif]);
 
   useEffect(() => {
-    if (barcodeModalOpen && barcodeTarget) {
-      QRCode.toDataURL(barcodeTarget.barcode_id, {
-        width: 260,
-        margin: 1,
-        color: { dark: "#0f172a", light: "#ffffff" },
-      })
-        .then((url: string) => setQrDataUrl(url))
-        .catch(() => setQrDataUrl(""));
-    } else {
-      setQrDataUrl("");
-    }
-  }, [barcodeModalOpen, barcodeTarget]);
+    let isActive = true;
+    const fetchAttendanceSummary = async () => {
+      if (siswaData.length === 0) {
+        if (isActive) setAttendanceMap({});
+        return;
+      }
+      const ids = siswaData.map((row) => row.id);
+      const baseMap: Record<string, AttendanceSummary> = {};
+      ids.forEach((id) => {
+        baseMap[id] = { hadir: 0, izin: 0, sakit: 0, alfa: 0, pelanggaran: 0 };
+      });
+
+      const { data: absensiRows, error: absensiError } = await supabase
+        .from("absensi_log")
+        .select("siswa_id,status_hari_ini")
+        .in("siswa_id", ids);
+      if (!absensiError && absensiRows && absensiRows.length > 0) {
+        (absensiRows as Array<{ siswa_id: string; status_hari_ini: string | null }>).forEach((row) => {
+          const summary = baseMap[row.siswa_id];
+          if (!summary) return;
+          if (row.status_hari_ini === "hadir") summary.hadir += 1;
+          if (row.status_hari_ini === "izin") summary.izin += 1;
+          if (row.status_hari_ini === "sakit") summary.sakit += 1;
+          if (row.status_hari_ini === "alfa") summary.alfa += 1;
+        });
+      } else {
+        const { data: siswaFallback, error: siswaFallbackError } = await supabase
+          .from("records")
+          .select("id,kehadiran,status_hari_ini,absen_hari_ini")
+          .eq("type", "siswa")
+          .in("id", ids);
+        if (!siswaFallbackError && siswaFallback) {
+          (siswaFallback as Array<{ id: string; kehadiran: number; status_hari_ini: string | null; absen_hari_ini: string | null }>).forEach((row) => {
+            const summary = baseMap[row.id];
+            if (!summary) return;
+            summary.hadir = Math.max(0, Number(row.kehadiran) || 0);
+            if (row.absen_hari_ini && row.status_hari_ini && row.status_hari_ini !== "hadir") {
+              if (row.status_hari_ini === "izin") summary.izin += 1;
+              if (row.status_hari_ini === "sakit") summary.sakit += 1;
+              if (row.status_hari_ini === "alfa") summary.alfa += 1;
+            }
+          });
+        }
+      }
+
+      const { data: pelanggaranRows, error: pelanggaranError } = await supabase
+        .from("pelanggaran_siswa_log")
+        .select("siswa_id")
+        .in("siswa_id", ids);
+      if (!pelanggaranError && pelanggaranRows) {
+        (pelanggaranRows as Array<{ siswa_id: string }>).forEach((row) => {
+          const summary = baseMap[row.siswa_id];
+          if (!summary) return;
+          summary.pelanggaran += 1;
+        });
+      }
+
+      if (isActive) setAttendanceMap(baseMap);
+    };
+
+    fetchAttendanceSummary();
+    return () => {
+      isActive = false;
+    };
+  }, [siswaData]);
 
   const showNotif = useCallback((message: string) => {
     setNotif(message);
@@ -209,158 +236,12 @@ export default function Home() {
     }
   }, [showNotif]);
 
-  const handleDownloadBarcode = async (siswa: SiswaRecord) => {
-    showNotif("\u{23F3} Memproses download...");
-    const canvas = document.createElement("canvas");
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
-
-    let qrDataUrl = "";
-    try {
-      qrDataUrl = await QRCode.toDataURL(siswa.barcode_id, {
-        width: 360,
-        margin: 2,
-        color: { dark: "#0f172a", light: "#ffffff" },
-      });
-    } catch {
-      qrDataUrl = "";
-    }
-
-    const qrImg = new Image();
-    qrImg.onload = () => {
-      canvas.width = 800;
-      canvas.height = 1200;
-
-      ctx.fillStyle = "#f8fafc";
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-      drawRoundedRect(ctx, 24, 24, canvas.width - 48, canvas.height - 48, 28);
-      ctx.strokeStyle = "#e2e8f0";
-      ctx.lineWidth = 2;
-      ctx.stroke();
-
-      ctx.fillStyle = "#1d4ed8";
-      drawRoundedRect(ctx, 40, 40, 80, 80, 16);
-      drawRoundedRect(ctx, canvas.width - 120, 40, 80, 80, 16);
-      drawRoundedRect(ctx, 40, canvas.height - 120, 80, 80, 16);
-      drawRoundedRect(ctx, canvas.width - 120, canvas.height - 120, 80, 80, 16);
-
-      ctx.fillStyle = "#0f172a";
-      ctx.font = "700 24px Arial";
-      ctx.textAlign = "center";
-      ctx.fillText("ABSENSI SMP", canvas.width / 2, 130);
-
-      const qrSize = 220;
-      const qrX = (canvas.width - qrSize) / 2;
-      const qrY = 240;
-      ctx.save();
-      ctx.translate(canvas.width / 2, qrY + qrSize / 2);
-      ctx.rotate(Math.PI / 4);
-      drawRoundedRect(ctx, -140, -140, 280, 280, 22);
-      ctx.fillStyle = "#1d4ed8";
-      ctx.fill();
-      ctx.restore();
-
-      if (qrDataUrl) {
-        drawRoundedRect(ctx, qrX - 16, qrY - 16, qrSize + 32, qrSize + 32, 20);
-        ctx.fillStyle = "#ffffff";
-        ctx.fill();
-        ctx.strokeStyle = "#ffffff";
-        ctx.lineWidth = 1;
-        ctx.stroke();
-        ctx.drawImage(qrImg, qrX, qrY, qrSize, qrSize);
-      } else {
-        ctx.fillStyle = "#e2e8f0";
-        ctx.fillRect(qrX, qrY, qrSize, qrSize);
-        ctx.fillStyle = "#94a3b8";
-        ctx.font = "600 18px Arial";
-        ctx.textAlign = "center";
-        ctx.fillText(getInitials(siswa.nama), canvas.width / 2, qrY + qrSize / 2 + 8);
-      }
-
-      ctx.textAlign = "center";
-      ctx.fillStyle = "#0f172a";
-      ctx.font = "700 28px Arial";
-      ctx.fillText(siswa.nama.toUpperCase(), canvas.width / 2, 580);
-
-      const roleText = `Siswa Kelas ${siswa.kelas || "-"}`;
-      ctx.font = "600 16px Arial";
-      drawRoundedRect(ctx, canvas.width / 2 - 110, 604, 220, 32, 16);
-      ctx.fillStyle = "#dcfce7";
-      ctx.fill();
-      ctx.fillStyle = "#166534";
-      ctx.fillText(roleText, canvas.width / 2, 626);
-
-      ctx.fillStyle = "#0f172a";
-      ctx.font = "600 14px Courier New";
-      ctx.fillText("ID NO", canvas.width / 2, 690);
-      ctx.font = "700 18px Courier New";
-      ctx.fillText(siswa.barcode_id, canvas.width / 2, 718);
-
-      ctx.fillStyle = "#64748b";
-      ctx.font = "500 12px Arial";
-      ctx.fillText("Scan QR untuk absensi", canvas.width / 2, 744);
-
-      ctx.fillStyle = "#94a3b8";
-      ctx.font = "500 12px Arial";
-      const tanggal = new Date(siswa.dibuat).toLocaleDateString("id-ID", {
-        day: "numeric",
-        month: "long",
-        year: "numeric",
-      });
-      ctx.textAlign = "left";
-      ctx.fillText(`Terdaftar: ${tanggal}`, 60, canvas.height - 60);
-
-      ctx.textAlign = "right";
-
-      canvas.toBlob((blob) => {
-        if (!blob) return;
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement("a");
-        link.download = `Kartu_${siswa.nama.replace(/\s+/g, "_")}_${siswa.barcode_id}.png`;
-        link.href = url;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        URL.revokeObjectURL(url);
-        showNotif(`\u{2705} Kartu ${siswa.nama} berhasil didownload!`);
-      }, "image/png");
-    };
-    qrImg.onerror = () => showNotif("\u{274C} Gagal membuat QR code");
-    if (qrDataUrl) {
-      qrImg.src = qrDataUrl;
-    }
-  };
 
   const textColor = config.text_color || defaultConfig.text_color;
   const primaryColor = config.primary_action || defaultConfig.primary_action;
-  const secondaryColor = config.secondary_action || defaultConfig.secondary_action;
   const baseSize = config.font_size || defaultConfig.font_size;
-  const barcodeStatusKnown = isClientReady;
 
-  const barcodeHadir = barcodeStatusKnown && barcodeTarget?.absen_hari_ini === todayDate;
-  const barcodeStatusLabel = !barcodeStatusKnown
-    ? "Memuat..."
-    : barcodeHadir
-      ? "Hadir Hari Ini"
-      : "Belum Absen";
-  const barcodeBadgeStyle = !barcodeStatusKnown
-    ? { background: "rgba(148, 163, 184, 0.2)", border: "2px solid rgba(148, 163, 184, 0.4)" }
-    : barcodeHadir
-      ? { background: "rgba(16, 185, 129, 0.3)", border: "3px solid #10b981" }
-      : { background: "rgba(239, 68, 68, 0.3)", border: "3px solid #ef4444" };
-  const barcodeBadgeIcon = !barcodeStatusKnown
-    ? "\u{23F3}"
-    : barcodeHadir
-      ? "\u{2705}"
-      : "\u{26A0}\u{FE0F}";
-  const barcodeCreatedLabel = barcodeStatusKnown && barcodeTarget
-    ? new Date(barcodeTarget.dibuat).toLocaleDateString("id-ID", {
-        day: "numeric",
-        month: "long",
-        year: "numeric",
-      })
-    : "-";
+  const selectedSummary = barcodeTarget ? attendanceMap[barcodeTarget.id] : undefined;
 
   return (
     <div className="min-h-full w-full">
@@ -548,7 +429,9 @@ export default function Home() {
                     </p>
                   </div>
                 ) : (
-                  filteredSiswa.map((siswa, index) => (
+                  filteredSiswa.map((siswa, index) => {
+                    const summary = attendanceMap[siswa.id] || { hadir: 0, izin: 0, sakit: 0, alfa: 0, pelanggaran: 0 };
+                    return (
                     <div
                       key={siswa.id}
                       className="glass-card leaderboard-card premium-shadow cursor-pointer hover:scale-[1.02] transition-transform"
@@ -574,7 +457,13 @@ export default function Home() {
                               </span>
                             ) : null}
                             <span className="leaderboard-tag leaderboard-tag--hadir">
-                              {"\u{2705}"} {siswa.kehadiran}
+                              {"\u{2705}"} {summary.hadir}
+                            </span>
+                            <span className="leaderboard-tag leaderboard-tag--hadir">
+                              {"\u{26A0}\u{FE0F}"} {summary.alfa}
+                            </span>
+                            <span className="leaderboard-tag leaderboard-tag--hadir">
+                              {"\u{26A1}"} {summary.pelanggaran}
                             </span>
                           </div>
                         </div>
@@ -587,7 +476,8 @@ export default function Home() {
                         </div>
                       </div>
                     </div>
-                  ))
+                  );
+                  })
                 )}
               </div>
             </>
@@ -596,21 +486,28 @@ export default function Home() {
 
       {barcodeModalOpen && barcodeTarget ? (
         <div className="modal-overlay" style={{ animation: "fadeIn 0.4s cubic-bezier(0.4, 0, 0.2, 1)" }}>
-          <div className="max-w-4xl w-full mx-4" style={{ animation: "fadeIn 0.5s cubic-bezier(0.4, 0, 0.2, 1)" }}>
+          <div
+            className="w-full mx-4"
+            style={{
+              maxWidth: 360,
+              width: "82vw",
+              animation: "fadeIn 0.5s cubic-bezier(0.4, 0, 0.2, 1)",
+            }}
+          >
             <div className="relative" style={{ perspective: 1000 }}>
               <div
                 className="relative rounded-3xl shadow-2xl overflow-hidden"
                 style={{
                   background: `linear-gradient(135deg, ${primaryColor} 0%, #1e40af 100%)`,
                   width: "100%",
-                  maxWidth: 600,
+                  maxWidth: 360,
                   margin: "0 auto",
                   transformStyle: "preserve-3d",
                   animation: "fadeIn 0.6s ease",
                 }}
               >
                 <div
-                  className="relative p-8"
+                  className="relative p-4 md:p-5"
                   style={{
                     background: "linear-gradient(135deg, rgba(255, 255, 255, 0.15), rgba(255, 255, 255, 0.05))",
                     borderBottom: "2px solid rgba(255, 255, 255, 0.2)",
@@ -619,21 +516,21 @@ export default function Home() {
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-4">
                       <div className="w-16 h-16 rounded-full flex items-center justify-center" style={{ background: "rgba(255, 255, 255, 0.2)", backdropFilter: "blur(10px)" }}>
-                        <span style={{ fontSize: `${baseSize * 2}px` }}>{"\u{1F39F}\u{FE0F}"}</span>
+                        <span style={{ fontSize: `${baseSize * 2}px` }}>{"\u{1F4CB}"}</span>
                       </div>
                       <div>
                         <h3 className="font-black" style={{ fontSize: `${baseSize * 1.2}px`, color: "white", letterSpacing: 1, textTransform: "uppercase" }}>
-                          Kartu Siswa
+                          Rekap Kehadiran
                         </h3>
-                        <p style={{ fontSize: `${baseSize * 0.85}px`, color: "rgba(255, 255, 255, 0.8)" }}>ID: {barcodeTarget.barcode_id}</p>
+                        <p style={{ fontSize: `${baseSize * 0.85}px`, color: "rgba(255, 255, 255, 0.8)" }}>{barcodeTarget.kelas || "-"}</p>
                       </div>
                     </div>
                     <div
                       className="w-20 h-20 rounded-full flex items-center justify-center"
-                      style={{ ...barcodeBadgeStyle, backdropFilter: "blur(10px)", animation: "pulse 2s ease-in-out infinite" }}
+                      style={{ background: "rgba(255, 255, 255, 0.2)", border: "2px solid rgba(255, 255, 255, 0.4)", backdropFilter: "blur(10px)" }}
                     >
                       <span style={{ fontSize: `${baseSize * 2}px` }} suppressHydrationWarning>
-                        {barcodeBadgeIcon}
+                        {"\u{1F4C8}"}
                       </span>
                     </div>
                   </div>
@@ -659,131 +556,96 @@ export default function Home() {
                   </button>
                 </div>
 
-                <div className="p-8">
-                  <div className="flex justify-between items-start mb-8">
-                    <div className="flex-1">
-                      <div className="w-40 h-40 rounded-2xl flex items-center justify-center mb-4" style={{ background: "linear-gradient(135deg, rgba(255, 255, 255, 0.2), rgba(255, 255, 255, 0.1))", backdropFilter: "blur(10px)", border: "3px solid rgba(255, 255, 255, 0.3)" }}>
-                        <span style={{ fontSize: `${baseSize * 5}px` }}>{"\u{1F464}"}</span>
-                      </div>
-                      <div className="px-4 py-2 rounded-xl inline-block" style={{ background: "rgba(255, 255, 255, 0.15)", backdropFilter: "blur(10px)" }}>
-                        <span style={{ fontSize: `${baseSize * 0.8}px`, color: "white", fontWeight: 600, textTransform: "uppercase", letterSpacing: 1 }} suppressHydrationWarning>
-                          {barcodeStatusLabel}
-                        </span>
-                      </div>
-                    </div>
-                    <div className="flex-1 text-right">
-                      <h2 className="font-black mb-6" style={{ fontSize: `${baseSize * 2.5}px`, color: "white", letterSpacing: "-0.5px", lineHeight: 1.1 }}>
+                <div className="p-4 md:p-5">
+                  <div className="flex flex-col sm:flex-row justify-between items-start gap-3 mb-4">
+                    <div className="flex-1 md:text-right">
+                      <h2
+                        className="font-black mb-3"
+                        style={{ fontSize: "clamp(1.4rem, 4vw, 2.1rem)", color: "white", letterSpacing: "-0.3px", lineHeight: 1.15 }}
+                      >
                         {barcodeTarget.nama}
                       </h2>
-                      <div className="space-y-3">
-                        <div className="inline-block px-6 py-3 rounded-xl" style={{ background: "linear-gradient(135deg, rgba(251, 191, 36, 0.3), rgba(245, 158, 11, 0.3))", backdropFilter: "blur(10px)", border: "2px solid rgba(251, 191, 36, 0.5)" }}>
-                          <span style={{ fontSize: `${baseSize * 1.3}px`, color: "#fbbf24", fontWeight: 800 }}>
+                      <div className="flex flex-wrap md:justify-end gap-2">
+                        <div
+                          className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl"
+                          style={{
+                            background: "linear-gradient(135deg, rgba(251, 191, 36, 0.3), rgba(245, 158, 11, 0.3))",
+                            backdropFilter: "blur(10px)",
+                            border: "2px solid rgba(251, 191, 36, 0.5)",
+                          }}
+                        >
+                          <span style={{ fontSize: `${baseSize * 1}px`, color: "#fbbf24", fontWeight: 800 }}>
                             {"\u{2B50}"} {barcodeTarget.poin}
                           </span>
                         </div>
-                        <div className="inline-block px-6 py-3 rounded-xl" style={{ background: "linear-gradient(135deg, rgba(16, 185, 129, 0.3), rgba(5, 150, 105, 0.3))", backdropFilter: "blur(10px)", border: "2px solid rgba(16, 185, 129, 0.5)" }}>
-                          <span style={{ fontSize: `${baseSize * 1.3}px`, color: "#10b981", fontWeight: 800 }}>
-                            {"\u{2705}"} {barcodeTarget.kehadiran}
+                        <div
+                          className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl"
+                          style={{
+                            background: "linear-gradient(135deg, rgba(16, 185, 129, 0.3), rgba(5, 150, 105, 0.3))",
+                            backdropFilter: "blur(10px)",
+                            border: "2px solid rgba(16, 185, 129, 0.5)",
+                          }}
+                        >
+                          <span style={{ fontSize: `${baseSize * 1}px`, color: "#10b981", fontWeight: 800 }}>
+                            {"\u{1F3EB}"} {barcodeTarget.kelas || "-"}
                           </span>
                         </div>
                       </div>
                     </div>
                   </div>
 
-                  <div className="bg-white p-6 md:p-8 rounded-2xl" style={{ boxShadow: "0 10px 30px rgba(0, 0, 0, 0.3)" }}>
-                    <p className="text-center mb-4 font-black" style={{ fontSize: `${baseSize * 1.5}px`, color: "#1e293b", letterSpacing: 1 }}>
-                      {barcodeTarget.nama}
-                    </p>
-                    {qrDataUrl ? (
-                      <div
+                  <div className="bg-white p-4 md:p-5 rounded-2xl" style={{ boxShadow: "0 10px 30px rgba(0, 0, 0, 0.2)" }}>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div className="stat-card p-3 rounded-2xl premium-shadow">
+                        <div style={{ fontSize: `${baseSize * 0.8}px`, color: "#64748b", fontWeight: 600 }}>Hadir</div>
+                        <div className="font-bold" style={{ fontSize: `${baseSize * 1.6}px`, color: primaryColor }}>
+                          {selectedSummary?.hadir ?? 0}
+                        </div>
+                      </div>
+                      <div className="stat-card p-3 rounded-2xl premium-shadow">
+                        <div style={{ fontSize: `${baseSize * 0.8}px`, color: "#64748b", fontWeight: 600 }}>Izin</div>
+                        <div className="font-bold" style={{ fontSize: `${baseSize * 1.6}px`, color: primaryColor }}>
+                          {selectedSummary?.izin ?? 0}
+                        </div>
+                      </div>
+                      <div className="stat-card p-3 rounded-2xl premium-shadow">
+                        <div style={{ fontSize: `${baseSize * 0.8}px`, color: "#64748b", fontWeight: 600 }}>Sakit</div>
+                        <div className="font-bold" style={{ fontSize: `${baseSize * 1.6}px`, color: primaryColor }}>
+                          {selectedSummary?.sakit ?? 0}
+                        </div>
+                      </div>
+                      <div className="stat-card p-3 rounded-2xl premium-shadow">
+                        <div style={{ fontSize: `${baseSize * 0.8}px`, color: "#64748b", fontWeight: 600 }}>Alfa</div>
+                        <div className="font-bold" style={{ fontSize: `${baseSize * 1.6}px`, color: primaryColor }}>
+                          {selectedSummary?.alfa ?? 0}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="mt-4 stat-card p-3 rounded-2xl premium-shadow">
+                      <div style={{ fontSize: `${baseSize * 0.8}px`, color: "#64748b", fontWeight: 600 }}>Pelanggaran</div>
+                      <div className="font-bold" style={{ fontSize: `${baseSize * 1.6}px`, color: "#ef4444" }}>
+                        {selectedSummary?.pelanggaran ?? 0}
+                      </div>
+                    </div>
+                    <div className="mt-4">
+                      <button
+                        className="luxury-button w-full px-5 py-2.5 rounded-xl font-bold shadow-lg"
                         style={{
-                          width: "60%",
-                          margin: "0 auto",
-                          padding: 12,
-                          borderRadius: 14,
-                          border: "2px solid #e2e8f0",
-                          background: "#f8fafc",
+                          background: primaryColor,
+                          color: "white",
+                          border: "1px solid rgba(37, 99, 235, 0.35)",
+                          fontSize: `${baseSize * 0.9}px`,
                         }}
+                        onClick={() => setBarcodeModalOpen(false)}
                       >
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img src={qrDataUrl} alt="QR Code" style={{ width: "100%", height: "auto", display: "block" }} />
-                      </div>
-                    ) : (
-                      <div className="text-center py-8" style={{ color: "#64748b", fontSize: `${baseSize * 0.9}px` }}>
-                        QR code tidak tersedia
-                      </div>
-                    )}
-                    <p className="text-center mt-4 font-black" style={{ fontSize: `${baseSize * 1.1}px`, color: "#1e293b", fontFamily: "Courier New, monospace", letterSpacing: 2 }}>
-                      {barcodeTarget.barcode_id}
-                    </p>
-                    <svg id="barcodeSvg" style={{ display: "none" }} />
-                    <div className="mt-5">
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        <button
-                          className="luxury-button w-full px-6 py-3 rounded-xl font-bold shadow-lg"
-                          style={{ background: `linear-gradient(135deg, ${secondaryColor}, #059669)`, color: "white", fontSize: `${baseSize * 0.95}px` }}
-                          onClick={() => handleDownloadBarcode(barcodeTarget)}
-                        >
-                          {"\u{2B07}\u{FE0F}"} Download
-                        </button>
-                        <button
-                          className="luxury-button w-full px-6 py-3 rounded-xl font-bold shadow-lg"
-                          style={{
-                            background: "rgba(15, 23, 42, 0.08)",
-                            color: "#0f172a",
-                            border: "1px solid rgba(15, 23, 42, 0.12)",
-                            fontSize: `${baseSize * 0.95}px`,
-                          }}
-                          onClick={() => setBarcodeModalOpen(false)}
-                        >
-                          {"\u{2B05}\u{FE0F}"} Kembali
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="mt-6 flex items-center justify-between">
-                    <div>
-                      <p style={{ fontSize: `${baseSize * 0.75}px`, color: "rgba(255, 255, 255, 0.6)", textTransform: "uppercase", letterSpacing: 1 }}>
-                        Terdaftar Sejak
-                      </p>
-                      <p style={{ fontSize: `${baseSize * 0.9}px`, color: "white", fontWeight: 600 }}>
-                        <span suppressHydrationWarning>{barcodeCreatedLabel}</span>
-                      </p>
-                    </div>
-                    <div className="text-right">
-                      <p style={{ fontSize: `${baseSize * 0.75}px`, color: "rgba(255, 255, 255, 0.6)", textTransform: "uppercase", letterSpacing: 1 }}>
-                        Tingkat Prestasi
-                      </p>
-                      <p style={{ fontSize: `${baseSize * 0.9}px`, color: "white", fontWeight: 600 }}>
-                        {barcodeTarget.poin >= 100
-                          ? "\u{1F3C6} Platinum"
-                          : barcodeTarget.poin >= 50
-                            ? "\u{1F947} Gold"
-                            : barcodeTarget.poin >= 20
-                              ? "\u{1F948} Silver"
-                              : "\u{1F949} Bronze"}
-                      </p>
+                        {"\u{2B05}\u{FE0F}"} Kembali
+                      </button>
                     </div>
                   </div>
                 </div>
               </div>
             </div>
 
-            <div className="mt-6" />
-
-            <div className="mt-6 glass-card p-6 rounded-2xl premium-shadow" style={{ animation: "fadeIn 0.9s ease 0.5s both" }}>
-              <h3 className="font-bold mb-3 flex items-center gap-2" style={{ fontSize: `${baseSize * 1.1}px`, color: textColor }}>
-                <span style={{ fontSize: `${baseSize * 1.5}px` }}>{"\u{1F9FE}"}</span>
-                <span>Cara Menggunakan:</span>
-              </h3>
-              <ul style={{ fontSize: `${baseSize * 0.95}px`, color: textColor, opacity: 0.8, lineHeight: 1.8 }}>
-                <li style={{ marginBottom: 8 }}>{"1\u{FE0F}\u{20E3}"} Download kartu siswa dengan tombol di atas</li>
-                <li style={{ marginBottom: 8 }}>{"2\u{FE0F}\u{20E3}"} Scan barcode di Panel Admin untuk absensi</li>
-                <li style={{ marginBottom: 8 }}>{"3\u{FE0F}\u{20E3}"} Kartu dapat dicetak dan dilaminasi</li>
-                <li>{"4\u{FE0F}\u{20E3}"} Simpan kode {barcodeTarget.barcode_id} untuk input manual</li>
-              </ul>
-            </div>
           </div>
         </div>
       ) : null}
