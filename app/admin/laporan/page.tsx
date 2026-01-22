@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
@@ -27,6 +27,7 @@ type PelanggaranLog = {
 };
 
 type RangeKey = "minggu" | "bulan" | "tahun";
+type ReportView = "absensi" | "pelanggaran" | "rekap" | "all";
 
 function startOfRange(range: RangeKey) {
   const now = new Date();
@@ -70,16 +71,19 @@ export default function LaporanPage() {
   const [absensiData, setAbsensiData] = useState<AbsensiLog[]>([]);
   const [pelanggaranData, setPelanggaranData] = useState<PelanggaranLog[]>([]);
   const [range, setRange] = useState<RangeKey>("bulan");
-  const [search, setSearch] = useState("");
   const [selectedKelas, setSelectedKelas] = useState<string>("all");
   const [isLoading, setIsLoading] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [syncNotice, setSyncNotice] = useState<string | null>(null);
   const [fromDate, setFromDate] = useState(formatDateInput(startOfRange("bulan")));
   const [toDate, setToDate] = useState(formatDateInput(new Date()));
   const [pageAbsensi, setPageAbsensi] = useState(1);
   const [pagePelanggaran, setPagePelanggaran] = useState(1);
+  const [pageRekap, setPageRekap] = useState(1);
   const pageSize = 5;
+  const rekapPageSize = 8;
   const [showAllPelanggaran, setShowAllPelanggaran] = useState(false);
+  const [reportView, setReportView] = useState<ReportView>("all");
 
   useEffect(() => {
     const start = startOfRange(range);
@@ -90,6 +94,7 @@ export default function LaporanPage() {
   const fetchData = useCallback(async () => {
     setIsLoading(true);
     setLoadError(null);
+    setSyncNotice(null);
     try {
       let absensiRows: AbsensiLog[] = [];
       let pelanggaranRows: PelanggaranLog[] = [];
@@ -173,6 +178,7 @@ export default function LaporanPage() {
   const handleSyncAbsensi = useCallback(async () => {
     setIsLoading(true);
     setLoadError(null);
+    setSyncNotice(null);
     try {
       const { data: siswaRows, error: siswaError } = await supabase
         .from("records")
@@ -224,6 +230,7 @@ export default function LaporanPage() {
   const handleSyncPelanggaran = useCallback(async () => {
     setIsLoading(true);
     setLoadError(null);
+    setSyncNotice(null);
     try {
       const { data: pelanggaranMaster, error: pelanggaranError } = await supabase
         .from("records")
@@ -254,33 +261,41 @@ export default function LaporanPage() {
     }
   }, [fetchData, fromDate, toDate]);
 
+  const handleSyncAll = useCallback(async () => {
+    setIsLoading(true);
+    setLoadError(null);
+    setSyncNotice(null);
+    try {
+      await handleSyncAbsensi();
+      await handleSyncPelanggaran();
+      await fetchData();
+      setSyncNotice("Data berhasil diperbarui.");
+    } catch {
+      setLoadError("Gagal sinkronisasi. Periksa koneksi dan data.");
+    } finally {
+      setIsLoading(false);
+    }
+  }, [fetchData, handleSyncAbsensi, handleSyncPelanggaran]);
+
   useEffect(() => {
     fetchData();
   }, [fetchData]);
 
   const filteredAbsensi = useMemo(() => {
-    const query = search.trim().toLowerCase();
     let data = absensiData;
     if (selectedKelas !== "all") {
       data = data.filter((row) => row.kelas === selectedKelas);
     }
-    if (!query) return data;
-    return data.filter((row) =>
-      [row.nama, row.kelas, row.barcode_id].some((field) => field?.toLowerCase().includes(query)),
-    );
-  }, [absensiData, search, selectedKelas]);
+    return data;
+  }, [absensiData, selectedKelas]);
 
   const filteredPelanggaran = useMemo(() => {
-    const query = search.trim().toLowerCase();
     let data = pelanggaranData;
     if (selectedKelas !== "all") {
       data = data.filter((row) => row.kelas === selectedKelas);
     }
-    if (!query) return data;
-    return data.filter((row) =>
-      [row.nama, row.kelas, row.nama_pelanggaran].some((field) => field?.toLowerCase().includes(query)),
-    );
-  }, [pelanggaranData, search, selectedKelas]);
+    return data;
+  }, [pelanggaranData, selectedKelas]);
 
   const statusSummary = useMemo(() => {
     const summary = new Map<string, { nama: string; kelas: string; hadir: number; izin: number; sakit: number; alfa: number }>();
@@ -306,29 +321,36 @@ export default function LaporanPage() {
     return Array.from(summary.values());
   }, [filteredAbsensi]);
 
-  const siswaOptions = useMemo(() => {
-    const names = new Set<string>();
-    statusSummary.forEach((row) => {
-      names.add(row.nama);
-    });
-    return Array.from(names).sort();
-  }, [statusSummary]);
-
-  const [selectedSiswa, setSelectedSiswa] = useState<string>("all");
+  const [siswaQuery, setSiswaQuery] = useState("");
 
   const filteredStatusSummary = useMemo(() => {
-    if (selectedSiswa === "all") return statusSummary;
-    return statusSummary.filter((row) => row.nama === selectedSiswa);
-  }, [statusSummary, selectedSiswa]);
+    const query = siswaQuery.trim().toLowerCase();
+    if (!query) return statusSummary;
+    return statusSummary.filter((row) => row.nama.toLowerCase().includes(query));
+  }, [statusSummary, siswaQuery]);
 
   useEffect(() => {
     setPageAbsensi(1);
     setPagePelanggaran(1);
     setShowAllPelanggaran(false);
-  }, [fromDate, toDate, search, selectedKelas]);
+    setPageRekap(1);
+  }, [fromDate, toDate, selectedKelas]);
 
   const absensiTotalPages = Math.max(1, Math.ceil(filteredAbsensi.length / pageSize));
   const pelanggaranTotalPages = Math.max(1, Math.ceil(filteredPelanggaran.length / pageSize));
+  const rekapTotalPages = Math.max(1, Math.ceil(filteredStatusSummary.length / rekapPageSize));
+
+  const getPageItems = (current: number, total: number) => {
+    if (total <= 7) return Array.from({ length: total }, (_, idx) => idx + 1);
+    const pages: Array<number | "dots"> = [1];
+    const left = Math.max(2, current - 1);
+    const right = Math.min(total - 1, current + 1);
+    if (left > 2) pages.push("dots");
+    for (let i = left; i <= right; i += 1) pages.push(i);
+    if (right < total - 1) pages.push("dots");
+    pages.push(total);
+    return pages;
+  };
 
   const absensiPageData = useMemo(() => {
     const start = (pageAbsensi - 1) * pageSize;
@@ -340,6 +362,11 @@ export default function LaporanPage() {
     const start = (pagePelanggaran - 1) * pageSize;
     return filteredPelanggaran.slice(start, start + pageSize);
   }, [filteredPelanggaran, pagePelanggaran, showAllPelanggaran]);
+
+  const rekapPageData = useMemo(() => {
+    const start = (pageRekap - 1) * rekapPageSize;
+    return filteredStatusSummary.slice(start, start + rekapPageSize);
+  }, [filteredStatusSummary, pageRekap]);
 
   const kelasOptions = useMemo(() => {
     const kelasSet = new Set<string>();
@@ -480,81 +507,135 @@ export default function LaporanPage() {
         </div>
       </div>
 
-      <article className="card card--full p-5 md:p-6">
-        <div className="card__head">
+      <article className="card card--full p-5 md:p-6 report-filter-card">
+        <div className="card__head report-filter-head">
           <div>
             <h2 className="card__title">Filter Laporan</h2>
             <p className="card__desc">Pilih rentang waktu dan cari nama siswa.</p>
           </div>
         </div>
 
-        <div className="actions" style={{ gap: "12px" }}>
-          <button className={`segmented__btn ${range === "minggu" ? "is-active" : ""}`} onClick={() => setRange("minggu")}>
-            1 Minggu
-          </button>
-          <button className={`segmented__btn ${range === "bulan" ? "is-active" : ""}`} onClick={() => setRange("bulan")}>
-            1 Bulan
-          </button>
-          <button className={`segmented__btn ${range === "tahun" ? "is-active" : ""}`} onClick={() => setRange("tahun")}>
-            1 Tahun
-          </button>
-        </div>
-
-        <div className="two-col" style={{ gap: "12px" }}>
-          <div className="field">
-            <label className="label" htmlFor="fromDate">Dari</label>
-            <input className="input" id="fromDate" type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)} />
+        <div className="report-filters">
+          <div className="report-range">
+            <button className={`segmented__btn ${range === "minggu" ? "is-active" : ""}`} onClick={() => setRange("minggu")}>
+              1 Minggu
+            </button>
+            <button className={`segmented__btn ${range === "bulan" ? "is-active" : ""}`} onClick={() => setRange("bulan")}>
+              1 Bulan
+            </button>
+            <button className={`segmented__btn ${range === "tahun" ? "is-active" : ""}`} onClick={() => setRange("tahun")}>
+              1 Tahun
+            </button>
           </div>
-          <div className="field">
-            <label className="label" htmlFor="toDate">Sampai</label>
-            <input className="input" id="toDate" type="date" value={toDate} onChange={(e) => setToDate(e.target.value)} />
+
+          <div className="report-fields">
+            <div className="field">
+              <label className="label" htmlFor="fromDate">Dari</label>
+              <input className="input" id="fromDate" type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)} />
+            </div>
+            <div className="field">
+              <label className="label" htmlFor="toDate">Sampai</label>
+              <input className="input" id="toDate" type="date" value={toDate} onChange={(e) => setToDate(e.target.value)} />
+            </div>
+            <div className="field">
+              <label className="label" htmlFor="kelasFilter">Filter Kelas</label>
+              <select
+                id="kelasFilter"
+                className="input"
+                value={selectedKelas}
+                onChange={(e) => setSelectedKelas(e.target.value)}
+              >
+                <option value="all">Semua Kelas</option>
+                {kelasOptions.map((kelas) => (
+                  <option key={kelas} value={kelas}>
+                    {kelas}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
-        </div>
 
-        <div className="field">
-          <label className="label" htmlFor="kelasFilter">Filter Kelas</label>
-          <select
-            id="kelasFilter"
-            className="input"
-            value={selectedKelas}
-            onChange={(e) => setSelectedKelas(e.target.value)}
-          >
-            <option value="all">Semua Kelas</option>
-            {kelasOptions.map((kelas) => (
-              <option key={kelas} value={kelas}>
-                {kelas}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        <div className="search">
-          <span aria-hidden="true">??</span>
-          <input
-            className="search__input"
-            placeholder="Cari nama/kelas/barcode..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
-        </div>
-
-        <div className="actions" style={{ gap: "12px" }}>
-          <button className="btn btn--primary" type="button" onClick={fetchData} disabled={isLoading}>
-            {isLoading ? "Memuat..." : "Refresh"}
-          </button>
-          <button className="btn btn--ghost" type="button" onClick={handleSyncAbsensi} disabled={isLoading}>
-            Sinkronisasi Absensi
-          </button>
-          <button className="btn btn--ghost" type="button" onClick={handleSyncPelanggaran} disabled={isLoading}>
-            Sinkronisasi Pelanggaran
-          </button>
+          <div className="report-actions">
+            <button className="btn btn--primary" type="button" onClick={fetchData} disabled={isLoading}>
+              {isLoading ? "Memuat..." : "Tampilkan"}
+            </button>
+            <button className="btn btn--ghost" type="button" onClick={handleSyncAll} disabled={isLoading}>
+              <span className="btn__icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24">
+                  <path
+                    d="M4 12a8 8 0 0 1 13.3-5.9"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.6"
+                    strokeLinecap="round"
+                  />
+                  <path
+                    d="M20 6v5h-5"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.6"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                  <path
+                    d="M20 12a8 8 0 0 1-13.3 5.9"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.6"
+                    strokeLinecap="round"
+                  />
+                  <path
+                    d="M4 18v-5h5"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.6"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+              </span>
+              {isLoading ? "Sinkronisasi..." : "Sinkronisasi"}
+            </button>
+          </div>
+          <div className="report-nav">
+            <button
+              className={`segmented__btn ${reportView === "absensi" ? "is-active" : ""}`}
+              type="button"
+              onClick={() => setReportView("absensi")}
+            >
+              Laporan Absensi
+            </button>
+            <button
+              className={`segmented__btn ${reportView === "pelanggaran" ? "is-active" : ""}`}
+              type="button"
+              onClick={() => setReportView("pelanggaran")}
+            >
+              Laporan Pelanggaran
+            </button>
+            <button
+              className={`segmented__btn ${reportView === "rekap" ? "is-active" : ""}`}
+              type="button"
+              onClick={() => setReportView("rekap")}
+            >
+              Rekap Status per Siswa
+            </button>
+            <button
+              className={`segmented__btn ${reportView === "all" ? "is-active" : ""}`}
+              type="button"
+              onClick={() => setReportView("all")}
+            >
+              Semua
+            </button>
+          </div>
         </div>
 
         {loadError ? <div className="muted">{loadError}</div> : null}
+        {syncNotice ? <div className="muted">{syncNotice}</div> : null}
       </article>
 
-      <div className="admin-grid" style={{ gap: "24px" }}>
-        <article className="card p-5 md:p-6 report-card">
+      <div className="admin-grid report-grid">
+        {(reportView === "absensi" || reportView === "all") ? (
+        <article className="card p-5 md:p-6 report-card" id="laporan-absensi">
           <div className="card__head report-header">
             <div>
               <h3 className="card__title">Laporan Absensi</h3>
@@ -596,7 +677,11 @@ export default function LaporanPage() {
                       <td data-label="Nama">{row.nama}</td>
                       <td data-label="Kelas">{row.kelas || "-"}</td>
                       <td data-label="Barcode">{row.barcode_id}</td>
-                      <td data-label="Status">{row.status_hari_ini || "-"}</td>
+                      <td data-label="Status">
+                        <span className={`badge ${row.status_hari_ini === "sakit" ? "badge--danger" : row.status_hari_ini === "izin" ? "badge--warning" : row.status_hari_ini === "alfa" ? "badge--muted" : "badge--success"}`}>
+                          {row.status_hari_ini || "-"}
+                        </span>
+                      </td>
                     </tr>
                   ))
                 )}
@@ -604,25 +689,28 @@ export default function LaporanPage() {
             </table>
           </div>
           {absensiTotalPages > 1 ? (
-            <div className="segmented" aria-label="Pagination absensi">
-              {Array.from({ length: absensiTotalPages }, (_, idx) => {
-                const page = idx + 1;
-                return (
+            <div className="segmented report-pagination" aria-label="Pagination absensi">
+              {getPageItems(pageAbsensi, absensiTotalPages).map((item, idx) =>
+                item === "dots" ? (
+                  <span key={`absensi-dots-${idx}`} className="segmented__dots">…</span>
+                ) : (
                   <button
-                    key={page}
-                    className={`segmented__btn ${pageAbsensi === page ? "is-active" : ""}`}
+                    key={`absensi-${item}`}
+                    className={`segmented__btn ${pageAbsensi === item ? "is-active" : ""}`}
                     type="button"
-                    onClick={() => setPageAbsensi(page)}
+                    onClick={() => setPageAbsensi(item)}
                   >
-                    {page}
+                    {item}
                   </button>
-                );
-              })}
+                ),
+              )}
             </div>
           ) : null}
         </article>
+        ) : null}
 
-        <article className="card p-5 md:p-6 report-card">
+        {(reportView === "pelanggaran" || reportView === "all") ? (
+        <article className="card p-5 md:p-6 report-card" id="laporan-pelanggaran">
           <div className="card__head report-header">
             <div>
               <h3 className="card__title">Laporan Pelanggaran</h3>
@@ -674,8 +762,14 @@ export default function LaporanPage() {
                       <td data-label="Nama">{row.nama}</td>
                       <td data-label="Kelas">{row.kelas || "-"}</td>
                       <td data-label="Pelanggaran">{row.nama_pelanggaran}</td>
-                      <td data-label="Status">{row.status_hari_ini || "-"}</td>
-                      <td data-label="Poin">{row.poin_pelanggaran}</td>
+                      <td data-label="Status">
+                        <span className={`badge ${row.status_hari_ini === "sakit" ? "badge--danger" : row.status_hari_ini === "izin" ? "badge--warning" : row.status_hari_ini === "alfa" ? "badge--muted" : "badge--success"}`}>
+                          {row.status_hari_ini || "-"}
+                        </span>
+                      </td>
+                      <td data-label="Poin">
+                        <span className="badge badge--warning">{row.poin_pelanggaran}</span>
+                      </td>
                     </tr>
                   ))
                 )}
@@ -683,45 +777,43 @@ export default function LaporanPage() {
             </table>
           </div>
           {!showAllPelanggaran && pelanggaranTotalPages > 1 ? (
-            <div className="segmented" aria-label="Pagination pelanggaran">
-              {Array.from({ length: pelanggaranTotalPages }, (_, idx) => {
-                const page = idx + 1;
-                return (
+            <div className="segmented report-pagination" aria-label="Pagination pelanggaran">
+              {getPageItems(pagePelanggaran, pelanggaranTotalPages).map((item, idx) =>
+                item === "dots" ? (
+                  <span key={`pelanggaran-dots-${idx}`} className="segmented__dots">…</span>
+                ) : (
                   <button
-                    key={page}
-                    className={`segmented__btn ${pagePelanggaran === page ? "is-active" : ""}`}
+                    key={`pelanggaran-${item}`}
+                    className={`segmented__btn ${pagePelanggaran === item ? "is-active" : ""}`}
                     type="button"
-                    onClick={() => setPagePelanggaran(page)}
+                    onClick={() => setPagePelanggaran(item)}
                   >
-                    {page}
+                    {item}
                   </button>
-                );
-              })}
+                ),
+              )}
             </div>
           ) : null}
         </article>
+        ) : null}
 
-        <article className="card p-5 md:p-6 report-card">
+        {(reportView === "rekap" || reportView === "all") ? (
+        <article className="card p-5 md:p-6 report-card" id="rekap-status">
           <div className="card__head report-header">
             <div>
               <h3 className="card__title">Rekap Status per Siswa</h3>
               <p className="card__desc">Hadir, Izin, Sakit, Alfa</p>
             </div>
-            <div className="field" style={{ minWidth: 180 }}>
-              <label className="label" htmlFor="siswaFilter">Pilih Siswa</label>
-              <select
+            <div className="field" style={{ minWidth: 220 }}>
+              <label className="label" htmlFor="siswaFilter">Cari Siswa</label>
+              <input
                 id="siswaFilter"
                 className="input"
-                value={selectedSiswa}
-                onChange={(e) => setSelectedSiswa(e.target.value)}
-              >
-                <option value="all">Semua Siswa</option>
-                {siswaOptions.map((nama) => (
-                  <option key={nama} value={nama}>
-                    {nama}
-                  </option>
-                ))}
-              </select>
+                type="search"
+                placeholder="Ketik nama siswa..."
+                value={siswaQuery}
+                onChange={(e) => setSiswaQuery(e.target.value)}
+              />
             </div>
             <div className="actions report-actions">
               <button className="btn btn--primary btn--sm" type="button" onClick={handleDownloadRekapCsv}>
@@ -746,12 +838,12 @@ export default function LaporanPage() {
                 </tr>
               </thead>
               <tbody>
-                {filteredStatusSummary.length === 0 ? (
+                {rekapPageData.length === 0 ? (
                   <tr>
                     <td colSpan={7} className="table-empty">Tidak ada data.</td>
                   </tr>
                 ) : (
-                  filteredStatusSummary.map((row) => (
+                  rekapPageData.map((row) => (
                     <tr key={`${row.nama}-${row.kelas}`} className="hover:bg-gray-50">
                       <td data-label="Nama">{row.nama}</td>
                       <td data-label="Kelas">{row.kelas}</td>
@@ -766,9 +858,31 @@ export default function LaporanPage() {
               </tbody>
             </table>
           </div>
+          {rekapTotalPages > 1 ? (
+            <div className="segmented report-pagination" aria-label="Pagination rekap">
+              {getPageItems(pageRekap, rekapTotalPages).map((item, idx) =>
+                item === "dots" ? (
+                  <span key={`rekap-dots-${idx}`} className="segmented__dots">...</span>
+                ) : (
+                  <button
+                    key={`rekap-${item}`}
+                    className={`segmented__btn ${pageRekap === item ? "is-active" : ""}`}
+                    type="button"
+                    onClick={() => setPageRekap(item)}
+                  >
+                    {item}
+                  </button>
+                ),
+              )}
+            </div>
+          ) : null}
         </article>
+        ) : null}
       </div>
     </div>
   );
 }
+
+
+
 
