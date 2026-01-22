@@ -198,12 +198,24 @@ export default function Home() {
         .from("pelanggaran_siswa_log")
         .select("siswa_id")
         .in("siswa_id", ids);
-      if (!pelanggaranError && pelanggaranRows) {
+      if (!pelanggaranError && pelanggaranRows && pelanggaranRows.length > 0) {
         (pelanggaranRows as Array<{ siswa_id: string }>).forEach((row) => {
           const summary = baseMap[row.siswa_id];
           if (!summary) return;
           summary.pelanggaran += 1;
         });
+      } else {
+        const { data: pelanggaranFallback, error: pelanggaranFallbackError } = await supabase
+          .from("pelanggaran_log")
+          .select("siswa_id")
+          .in("siswa_id", ids);
+        if (!pelanggaranFallbackError && pelanggaranFallback) {
+          (pelanggaranFallback as Array<{ siswa_id: string }>).forEach((row) => {
+            const summary = baseMap[row.siswa_id];
+            if (!summary) return;
+            summary.pelanggaran += 1;
+          });
+        }
       }
 
       if (isActive) setAttendanceMap(baseMap);
@@ -457,7 +469,7 @@ export default function Home() {
                               </span>
                             ) : null}
                             <span className="leaderboard-tag leaderboard-tag--hadir">
-                              {"\u{2705}"} {summary.hadir}
+                              {"\u{2705}"} {siswa.kehadiran}
                             </span>
                             <span className="leaderboard-tag leaderboard-tag--hadir">
                               {"\u{26A0}\u{FE0F}"} {summary.alfa}

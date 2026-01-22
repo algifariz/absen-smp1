@@ -118,7 +118,8 @@ export default function KelolaSiswaPage() {
           .from("records")
           .select("*")
           .eq("type", "siswa")
-          .order("poin", { ascending: false });
+          .order("nama", { ascending: true })
+          .order("kelas", { ascending: true });
         if (siswaError) throw siswaError;
 
         const { data: pelanggaranRows, error: pelanggaranError } = await supabase
@@ -186,7 +187,8 @@ export default function KelolaSiswaPage() {
         .from("records")
         .select("*")
         .eq("type", "siswa")
-        .order("poin", { ascending: false });
+        .order("nama", { ascending: true })
+        .order("kelas", { ascending: true });
       if (siswaError) throw siswaError;
 
       const { data: pelanggaranRows, error: pelanggaranError } = await supabase
@@ -790,26 +792,6 @@ export default function KelolaSiswaPage() {
                                 <td className="td-right" data-label="Aksi">
                                   <div className="row-actions">
                                     <button
-                                      className={`btn btn--sm btn--icon ${
-                                        statusValue === "hadir" ? "btn--success" : "btn--ghost"
-                                      }`}
-                                      type="button"
-                                      onClick={() => handleSetHadir(siswa)}
-                                    >
-                                      <span className="btn__icon" aria-hidden="true">
-                                        <svg viewBox="0 0 24 24">
-                                          <path
-                                            d="M5 7.5h14a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2Z"
-                                            fill="none"
-                                            stroke="currentColor"
-                                            strokeWidth="1.6"
-                                          />
-                                          <path d="M8 12h8" fill="none" stroke="currentColor" strokeWidth="1.6" />
-                                        </svg>
-                                      </span>
-                                      Hadir
-                                    </button>
-                                    <button
                                       className={`btn btn--sm ${statusValue === "izin" ? "btn--warning" : "btn--ghost"}`}
                                       type="button"
                                       onClick={() => handleSetStatus(siswa, "izin")}
@@ -829,27 +811,6 @@ export default function KelolaSiswaPage() {
                                       onClick={() => handleSetStatus(siswa, "alfa")}
                                     >
                                       Alfa
-                                    </button>
-                                    <button
-                                      className="btn btn--ghost btn--sm btn--icon"
-                                      type="button"
-                                      onClick={() => {
-                                        setBarcodeTarget(siswa);
-                                        setBarcodeModalOpen(true);
-                                      }}
-                                    >
-                                      <span className="btn__icon" aria-hidden="true">
-                                        <svg viewBox="0 0 24 24">
-                                          <path
-                                            d="M5 6h14v4H5V6Zm0 8h14v4H5v-4Z"
-                                            fill="none"
-                                            stroke="currentColor"
-                                            strokeWidth="1.6"
-                                          />
-                                          <path d="M8 8h2M8 16h2M14 8h2M14 16h2" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
-                                        </svg>
-                                      </span>
-                                      Barcode
                                     </button>
                                     <button
                                       className="btn btn--primary btn--sm btn--icon"
@@ -1144,4 +1105,3 @@ export default function KelolaSiswaPage() {
     </>
   );
 }
-
