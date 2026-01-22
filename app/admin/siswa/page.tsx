@@ -67,6 +67,7 @@ export default function KelolaSiswaPage() {
   const [confirmDeleteIds, setConfirmDeleteIds] = useState<Record<string, boolean>>({});
   const [editingNama, setEditingNama] = useState<Record<string, string>>({});
   const [selectedKelas, setSelectedKelas] = useState<string>("all");
+  const [searchQuery, setSearchQuery] = useState("");
   const [notif, setNotif] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -92,9 +93,16 @@ export default function KelolaSiswaPage() {
   }, [siswaData]);
 
   const filteredSiswa = useMemo(() => {
-    if (selectedKelas === "all") return siswaData;
-    return siswaData.filter((s) => s.kelas === selectedKelas);
-  }, [selectedKelas, siswaData]);
+    let data = siswaData;
+    if (selectedKelas !== "all") {
+      data = data.filter((s) => s.kelas === selectedKelas);
+    }
+    const query = searchQuery.trim().toLowerCase();
+    if (!query) return data;
+    return data.filter((s) =>
+      [s.nama, s.kelas, s.barcode_id].some((field) => field?.toLowerCase().includes(query)),
+    );
+  }, [selectedKelas, siswaData, searchQuery]);
 
   const pageSizeFinal = pageSize >= filteredSiswa.length ? filteredSiswa.length || 1 : pageSize;
   const totalPages = Math.max(1, Math.ceil(filteredSiswa.length / pageSizeFinal));
@@ -106,7 +114,7 @@ export default function KelolaSiswaPage() {
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [selectedKelas, pageSize, siswaData.length]);
+  }, [selectedKelas, pageSize, siswaData.length, searchQuery]);
 
   useEffect(() => {
     let isActive = true;
@@ -658,6 +666,20 @@ export default function KelolaSiswaPage() {
                     <button className="btn btn--primary" type="button" onClick={() => setAddModalOpen(true)}>
                       + Tambah Siswa
                     </button>
+                    <div className="field" style={{ margin: 0 }}>
+                      <label className="label" htmlFor="searchSiswa" style={{ display: "none" }}>
+                        Cari siswa
+                      </label>
+                      <input
+                        id="searchSiswa"
+                        className="input"
+                        type="search"
+                        placeholder="Cari nama / kelas / barcode..."
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        style={{ minWidth: 220 }}
+                      />
+                    </div>
                     <div className="actions siswa-actions">
                       <button className="btn btn--ghost btn--sm" type="button" onClick={handleExportCsv}>
                         Export Excel
