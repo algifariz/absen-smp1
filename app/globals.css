@@ -1946,6 +1946,10 @@ body {
     gap: 6px;
   }
 
+  .siswa-head {
+    align-items: stretch;
+  }
+
   .siswa-head__title {
     order: 1;
   }
@@ -1965,6 +1969,13 @@ body {
     align-items: flex-start;
     order: 2 !important;
     margin-top: 2px;
+    gap: 10px;
+  }
+
+  .siswa-toolbar .siswa-segmented {
+    width: 100%;
+    margin-top: 4px;
+    padding-bottom: 4px;
   }
 
   .siswa-segmented {
@@ -1975,6 +1986,10 @@ body {
     overflow-x: auto;
     padding-bottom: 2px;
     scrollbar-width: none;
+    position: relative;
+    z-index: 1;
+    display: flex;
+    min-height: 32px;
   }
 
   .siswa-segmented::-webkit-scrollbar {
@@ -1987,11 +2002,31 @@ body {
   }
 
   .siswa-toolbar .btn--primary {
-    width: fit-content;
+    width: 100%;
+    justify-content: center;
+  }
+
+  .siswa-toolbar .field {
+    width: 100%;
+  }
+
+  .siswa-toolbar .field .input {
+    width: 100%;
+    min-width: 0;
   }
 
   .siswa-actions {
-    display: none;
+    display: grid;
+    width: 100%;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .siswa-actions .btn {
+    width: 100%;
+    justify-content: center;
+    font-size: 0.72rem;
+    padding: 8px 10px;
   }
 
   .pagination {
