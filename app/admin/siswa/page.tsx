@@ -718,28 +718,28 @@ export default function KelolaSiswaPage() {
                       if (file) handleImportCsv(file);
                     }}
                   />
-                  <div className="segmented siswa-segmented" role="tablist" aria-label="Filter kelas">
-                    <button
-                      className={`segmented__btn ${selectedKelas === "all" ? "is-active" : ""}`}
-                      type="button"
-                      onClick={() => setSelectedKelas("all")}
-                    >
-                      Semua ({siswaData.length})
-                    </button>
-                    {kelasList.map((kelas) => {
-                      const count = siswaData.filter((s) => s.kelas === kelas).length;
-                      return (
-                        <button
-                          key={kelas}
-                          className={`segmented__btn ${selectedKelas === kelas ? "is-active" : ""}`}
-                          type="button"
-                          onClick={() => setSelectedKelas(kelas)}
-                        >
-                          {kelas} ({count})
-                        </button>
-                      );
-                    })}
-                  </div>
+                </div>
+                <div className="segmented siswa-segmented" role="tablist" aria-label="Filter kelas">
+                  <button
+                    className={`segmented__btn ${selectedKelas === "all" ? "is-active" : ""}`}
+                    type="button"
+                    onClick={() => setSelectedKelas("all")}
+                  >
+                    Semua ({siswaData.length})
+                  </button>
+                  {kelasList.map((kelas) => {
+                    const count = siswaData.filter((s) => s.kelas === kelas).length;
+                    return (
+                      <button
+                        key={kelas}
+                        className={`segmented__btn ${selectedKelas === kelas ? "is-active" : ""}`}
+                        type="button"
+                        onClick={() => setSelectedKelas(kelas)}
+                      >
+                        {kelas} ({count})
+                      </button>
+                    );
+                  })}
                 </div>
 
                 <div className="table-wrap">
