@@ -15,6 +15,7 @@ type SiswaRecord = {
   dibuat: string;
   barcode_id: string;
   absen_hari_ini: string | null;
+  status_hari_ini?: "hadir" | "izin" | "sakit" | "alfa" | null;
   created_at: string;
 };
 

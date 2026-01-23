@@ -9,8 +9,13 @@ type SiswaRecord = {
   type: "siswa";
   nama: string;
   kelas: string;
-  barcode_id: string;
+  poin: number;
+  kehadiran: number;
   dibuat: string;
+  barcode_id: string;
+  absen_hari_ini: string | null;
+  status_hari_ini?: "hadir" | "izin" | "sakit" | "alfa" | null;
+  created_at: string;
 };
 
 type Mode = "personal" | "kelas" | "all";
@@ -33,7 +38,7 @@ export default function GenerateQrPage() {
       try {
         const { data, error } = await supabase
           .from("records")
-          .select("id, type, nama, kelas, barcode_id, dibuat")
+          .select("*")
           .eq("type", "siswa")
           .order("nama", { ascending: true });
         if (error) throw error;
