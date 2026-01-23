@@ -232,25 +232,41 @@ export default function LaporanPage() {
     setLoadError(null);
     setSyncNotice(null);
     try {
-      const { data: pelanggaranMaster, error: pelanggaranError } = await supabase
-        .from("records")
-        .select("id,nama_pelanggaran,poin_pelanggaran,created_at")
-        .eq("type", "pelanggaran")
-        .gte("created_at", `${fromDate}T00:00:00.000Z`)
-        .lte("created_at", `${toDate}T23:59:59.999Z`);
-      if (pelanggaranError) throw pelanggaranError;
+      const { data: sourceLogs, error: sourceError } = await supabase
+        .from("pelanggaran_siswa_log")
+        .select("siswa_id,nama,kelas,nama_pelanggaran,poin_pelanggaran,status_hari_ini,tanggal,created_at")
+        .gte("tanggal", fromDate)
+        .lte("tanggal", toDate);
+      if (sourceError) throw sourceError;
 
-      if ((pelanggaranMaster || []).length > 0) {
-        const inserts = (pelanggaranMaster || []).map((row) => ({
-          siswa_id: row.id,
-          nama: row.nama_pelanggaran || "-",
-          kelas: "-",
+      const { data: existingLogs, error: existingError } = await supabase
+        .from("pelanggaran_log")
+        .select("siswa_id,tanggal,nama_pelanggaran")
+        .gte("tanggal", fromDate)
+        .lte("tanggal", toDate);
+      if (existingError) throw existingError;
+
+      const existingSet = new Set(
+        (existingLogs || []).map((row) => `${row.siswa_id}-${row.tanggal}-${row.nama_pelanggaran}`),
+      );
+
+      const inserts = (sourceLogs || [])
+        .filter(
+          (row) =>
+            !existingSet.has(`${row.siswa_id}-${row.tanggal}-${row.nama_pelanggaran}`),
+        )
+        .map((row) => ({
+          siswa_id: row.siswa_id,
+          nama: row.nama || "-",
+          kelas: row.kelas || "-",
           nama_pelanggaran: row.nama_pelanggaran || "-",
           poin_pelanggaran: row.poin_pelanggaran || 0,
-          status_hari_ini: "-",
-          tanggal: String(row.created_at || "").slice(0, 10),
+          status_hari_ini: row.status_hari_ini || "-",
+          tanggal: row.tanggal,
           created_at: row.created_at || new Date().toISOString(),
         }));
+
+      if (inserts.length > 0) {
         await supabase.from("pelanggaran_log").insert(inserts);
       }
       fetchData();
