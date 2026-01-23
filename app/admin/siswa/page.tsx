@@ -718,8 +718,7 @@ export default function KelolaSiswaPage() {
                       if (file) handleImportCsv(file);
                     }}
                   />
-                </div>
-                <div className="segmented siswa-segmented" role="tablist" aria-label="Filter kelas">
+                  
                   <button
                     className={`segmented__btn ${selectedKelas === "all" ? "is-active" : ""}`}
                     type="button"
@@ -740,7 +739,9 @@ export default function KelolaSiswaPage() {
                       </button>
                     );
                   })}
+            
                 </div>
+               
 
                 <div className="table-wrap">
                   <table className="table table--cards">
