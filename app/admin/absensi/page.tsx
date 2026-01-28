@@ -213,34 +213,48 @@ export default function AbsensiPage() {
         return;
       }
       const today = getTodayDate();
-      if (siswa.absen_hari_ini === today) {
-        const message = `${siswa.nama} sudah absen hari ini!`;
+      if (siswa.absen_hari_ini === today && siswa.status_hari_ini === "hadir") {
+        const message = `${siswa.nama} sudah hadir hari ini!`;
         showNotif(`Perhatian: ${message}`);
         setScanFeedback({ name: siswa.nama, message, ok: false });
         playWarningSound();
         return;
       }
 
+      const shouldIncrement = siswa.absen_hari_ini !== today || siswa.status_hari_ini !== "hadir";
+      const nextKehadiran = shouldIncrement ? siswa.kehadiran + 1 : siswa.kehadiran;
       const ok = await handleUpdateSiswa(siswa, {
-        kehadiran: siswa.kehadiran + 1,
+        kehadiran: nextKehadiran,
         absen_hari_ini: today,
         status_hari_ini: "hadir",
       });
 
       if (ok) {
-        const message = `${siswa.nama} berhasil absen!`;
+        const message =
+          siswa.absen_hari_ini === today && siswa.status_hari_ini && siswa.status_hari_ini !== "hadir"
+            ? `${siswa.nama} diubah menjadi hadir`
+            : `${siswa.nama} berhasil absen!`;
         showNotif(`Sukses: ${message}`);
         setScanFeedback({ name: siswa.nama, message, ok: true });
         playSuccessSound();
-        await supabase.from("absensi_log").insert({
-          siswa_id: siswa.id,
-          nama: siswa.nama,
-          kelas: siswa.kelas,
-          barcode_id: siswa.barcode_id,
-          tanggal: today,
-          status_hari_ini: "hadir",
-          created_at: new Date().toISOString(),
-        });
+        const { data: updatedLogs, error: updateError } = await supabase
+          .from("absensi_log")
+          .update({ status_hari_ini: "hadir" })
+          .eq("siswa_id", siswa.id)
+          .eq("tanggal", today)
+          .select("id");
+
+        if (updateError || !updatedLogs || updatedLogs.length === 0) {
+          await supabase.from("absensi_log").insert({
+            siswa_id: siswa.id,
+            nama: siswa.nama,
+            kelas: siswa.kelas,
+            barcode_id: siswa.barcode_id,
+            tanggal: today,
+            status_hari_ini: "hadir",
+            created_at: new Date().toISOString(),
+          });
+        }
       } else {
         const message = "Gagal mencatat absensi";
         showNotif(`Gagal: ${message}`);
