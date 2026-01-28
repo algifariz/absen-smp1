@@ -25,6 +25,7 @@ export default function GenerateQrPage() {
   const [mode, setMode] = useState<Mode>("personal");
   const [selectedKelas, setSelectedKelas] = useState("");
   const [selectedId, setSelectedId] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
   const [qrMap, setQrMap] = useState<Record<string, string>>({});
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -74,6 +75,16 @@ export default function GenerateQrPage() {
       setSelectedId(siswaData[0]?.id || "");
     }
   }, [mode, selectedId, siswaData]);
+
+  const matchedSiswa = useMemo(() => {
+    if (!searchQuery.trim()) return [];
+    const query = searchQuery.trim().toLowerCase();
+    return siswaData
+      .filter((siswa) =>
+        [siswa.nama, siswa.kelas, siswa.barcode_id].some((field) => field?.toLowerCase().includes(query)),
+      )
+      .slice(0, 8);
+  }, [searchQuery, siswaData]);
 
   const selectedSiswa = useMemo(() => {
     if (mode === "all") return siswaData;
@@ -185,21 +196,38 @@ export default function GenerateQrPage() {
         <div className="qr-toolbar">
           {mode === "personal" ? (
             <div className="field qr-field">
-              <label className="label" htmlFor="qr-personal">
-                Pilih Siswa
+              <label className="label" htmlFor="qr-personal-search">
+                Cari Siswa
               </label>
-              <select
-                id="qr-personal"
+              <input
+                id="qr-personal-search"
                 className="input"
-                value={selectedId}
-                onChange={(e) => setSelectedId(e.target.value)}
-              >
-                {siswaData.map((siswa) => (
-                  <option key={siswa.id} value={siswa.id}>
-                    {siswa.nama} - {siswa.kelas}
-                  </option>
-                ))}
-              </select>
+                placeholder="Ketik nama, kelas, atau ID..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+              {searchQuery.trim() ? (
+                <div className="qr-search-results">
+                  {matchedSiswa.length === 0 ? (
+                    <div className="qr-search-empty">Tidak ada siswa ditemukan.</div>
+                  ) : (
+                    matchedSiswa.map((siswa) => (
+                      <button
+                        key={siswa.id}
+                        type="button"
+                        className={`qr-search-item ${selectedId === siswa.id ? "is-active" : ""}`}
+                        onClick={() => {
+                          setSelectedId(siswa.id);
+                          setSearchQuery(`${siswa.nama} - ${siswa.kelas}`);
+                        }}
+                      >
+                        <span className="qr-search-name">{siswa.nama}</span>
+                        <span className="qr-search-meta">{siswa.kelas || "-"} · {siswa.barcode_id}</span>
+                      </button>
+                    ))
+                  )}
+                </div>
+              ) : null}
             </div>
           ) : null}
 

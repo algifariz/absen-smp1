@@ -32,6 +32,7 @@ export default function AbsensiPage() {
   const [scanModalOpen, setScanModalOpen] = useState(false);
   const [scanSession, setScanSession] = useState(0);
   const [scanStatus, setScanStatus] = useState<"idle" | "scanning" | "success" | "error">("idle");
+  const [cameraFacing, setCameraFacing] = useState<"environment" | "user">("environment");
   const [manualBarcode, setManualBarcode] = useState("");
   const [notif, setNotif] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -308,28 +309,55 @@ export default function AbsensiPage() {
 
     const startScan = async () => {
       try {
-        const devices = await Html5Qrcode.getCameras();
-        const preferredDevice = devices.find((device) => /back|rear|environment/i.test(device.label));
-        const deviceId = preferredDevice?.id || devices[0]?.id;
-        if (!deviceId) {
-          throw new Error("NoCameraFound");
-        }
-        await scanner.start(
-          { deviceId: { exact: deviceId } },
-          { fps: 10, qrbox: { width: 260, height: 260 } },
-          (decodedText) => {
-            if (!decodedText) return;
-            const now = Date.now();
-            if (lastScanRef.current === decodedText && now - lastScanAtRef.current < 1500) {
-              return;
+        const onDecode = (decodedText: string) => {
+          if (!decodedText) return;
+          const now = Date.now();
+          if (lastScanRef.current === decodedText && now - lastScanAtRef.current < 1500) {
+            return;
+          }
+          lastScanRef.current = decodedText;
+          lastScanAtRef.current = now;
+          setScanStatus("success");
+          processAbsensiRef.current(decodedText);
+        };
+
+        const startWithFacing = async (facing: "environment" | "user") =>
+          scanner.start(
+            { facingMode: facing },
+            { fps: 10, qrbox: { width: 260, height: 260 } },
+            onDecode,
+            () => undefined,
+          );
+
+        const startWithDevice = async (deviceId: string) =>
+          scanner.start(
+            { deviceId: { exact: deviceId } },
+            { fps: 10, qrbox: { width: 260, height: 260 } },
+            onDecode,
+            () => undefined,
+          );
+
+        try {
+          await startWithFacing(cameraFacing);
+        } catch {
+          const altFacing = cameraFacing === "environment" ? "user" : "environment";
+          try {
+            await startWithFacing(altFacing);
+            setCameraFacing(altFacing);
+          } catch {
+            const devices = await Html5Qrcode.getCameras();
+            const preferredDevice = devices.find((device) =>
+              cameraFacing === "environment"
+                ? /back|rear|environment/i.test(device.label)
+                : /front|user/i.test(device.label),
+            );
+            const fallbackDevice = preferredDevice?.id || devices[0]?.id;
+            if (!fallbackDevice) {
+              throw new Error("NoCameraFound");
             }
-            lastScanRef.current = decodedText;
-            lastScanAtRef.current = now;
-            setScanStatus("success");
-            processAbsensiRef.current(decodedText);
-          },
-          () => undefined,
-        );
+            await startWithDevice(fallbackDevice);
+          }
+        }
         scannerRunningRef.current = true;
       } catch (error) {
         const err = error as { name?: string; message?: string };
@@ -365,11 +393,18 @@ export default function AbsensiPage() {
         }
       }
     };
-  }, [scanModalOpen, scanSession, showNotif]);
+  }, [scanModalOpen, scanSession, showNotif, cameraFacing]);
 
   const handleRestartScan = () => {
     setScanFeedback(null);
     setScanStatus("scanning");
+    setScanSession((prev) => prev + 1);
+  };
+
+  const handleSwitchCamera = () => {
+    setScanFeedback(null);
+    setScanStatus("scanning");
+    setCameraFacing((prev) => (prev === "environment" ? "user" : "environment"));
     setScanSession((prev) => prev + 1);
   };
 
@@ -508,6 +543,15 @@ export default function AbsensiPage() {
               >
                 {scanStatusLabel}
               </div>
+            </div>
+            <div className="flex items-center justify-center mb-4">
+              <button
+                className="btn btn--ghost"
+                type="button"
+                onClick={handleSwitchCamera}
+              >
+                Ganti Kamera ({cameraFacing === "environment" ? "Belakang" : "Depan"})
+              </button>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <button
